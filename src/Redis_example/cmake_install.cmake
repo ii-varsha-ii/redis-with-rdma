@@ -1,4 +1,4 @@
-# Install script for directory: /users/nvarsha/rdma_connect/CSCI5572-AOS/src/Redis
+# Install script for directory: /users/nvarsha/rdma_connect/CSCI5572-AOS/src/Redis_example
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
