@@ -53,10 +53,10 @@ RM = /usr/bin/cmake -E rm -f
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /users/nvarsha/rdma_connect/CSCI5572-AOS/src/Redis
+CMAKE_SOURCE_DIR = /users/nvarsha/CSCI5572-AOS/src/Redis_example
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /users/nvarsha/rdma_connect/CSCI5572-AOS/src/Redis
+CMAKE_BINARY_DIR = /users/nvarsha/CSCI5572-AOS/src/Redis_example
 
 # Include any dependencies generated for this target.
 include CMakeFiles/rdma_client.dir/depend.make
@@ -72,30 +72,30 @@ include CMakeFiles/rdma_client.dir/flags.make
 CMakeFiles/rdma_client.dir/rdma_common.c.o: CMakeFiles/rdma_client.dir/flags.make
 CMakeFiles/rdma_client.dir/rdma_common.c.o: rdma_common.c
 CMakeFiles/rdma_client.dir/rdma_common.c.o: CMakeFiles/rdma_client.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/users/nvarsha/rdma_connect/CSCI5572-AOS/src/Redis/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building C object CMakeFiles/rdma_client.dir/rdma_common.c.o"
-	/usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/rdma_client.dir/rdma_common.c.o -MF CMakeFiles/rdma_client.dir/rdma_common.c.o.d -o CMakeFiles/rdma_client.dir/rdma_common.c.o -c /users/nvarsha/rdma_connect/CSCI5572-AOS/src/Redis/rdma_common.c
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/users/nvarsha/CSCI5572-AOS/src/Redis_example/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building C object CMakeFiles/rdma_client.dir/rdma_common.c.o"
+	/usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/rdma_client.dir/rdma_common.c.o -MF CMakeFiles/rdma_client.dir/rdma_common.c.o.d -o CMakeFiles/rdma_client.dir/rdma_common.c.o -c /users/nvarsha/CSCI5572-AOS/src/Redis_example/rdma_common.c
 
 CMakeFiles/rdma_client.dir/rdma_common.c.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing C source to CMakeFiles/rdma_client.dir/rdma_common.c.i"
-	/usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -E /users/nvarsha/rdma_connect/CSCI5572-AOS/src/Redis/rdma_common.c > CMakeFiles/rdma_client.dir/rdma_common.c.i
+	/usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -E /users/nvarsha/CSCI5572-AOS/src/Redis_example/rdma_common.c > CMakeFiles/rdma_client.dir/rdma_common.c.i
 
 CMakeFiles/rdma_client.dir/rdma_common.c.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling C source to assembly CMakeFiles/rdma_client.dir/rdma_common.c.s"
-	/usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -S /users/nvarsha/rdma_connect/CSCI5572-AOS/src/Redis/rdma_common.c -o CMakeFiles/rdma_client.dir/rdma_common.c.s
+	/usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -S /users/nvarsha/CSCI5572-AOS/src/Redis_example/rdma_common.c -o CMakeFiles/rdma_client.dir/rdma_common.c.s
 
 CMakeFiles/rdma_client.dir/rdma_client.c.o: CMakeFiles/rdma_client.dir/flags.make
 CMakeFiles/rdma_client.dir/rdma_client.c.o: rdma_client.c
 CMakeFiles/rdma_client.dir/rdma_client.c.o: CMakeFiles/rdma_client.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/users/nvarsha/rdma_connect/CSCI5572-AOS/src/Redis/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Building C object CMakeFiles/rdma_client.dir/rdma_client.c.o"
-	/usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/rdma_client.dir/rdma_client.c.o -MF CMakeFiles/rdma_client.dir/rdma_client.c.o.d -o CMakeFiles/rdma_client.dir/rdma_client.c.o -c /users/nvarsha/rdma_connect/CSCI5572-AOS/src/Redis/rdma_client.c
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/users/nvarsha/CSCI5572-AOS/src/Redis_example/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Building C object CMakeFiles/rdma_client.dir/rdma_client.c.o"
+	/usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/rdma_client.dir/rdma_client.c.o -MF CMakeFiles/rdma_client.dir/rdma_client.c.o.d -o CMakeFiles/rdma_client.dir/rdma_client.c.o -c /users/nvarsha/CSCI5572-AOS/src/Redis_example/rdma_client.c
 
 CMakeFiles/rdma_client.dir/rdma_client.c.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing C source to CMakeFiles/rdma_client.dir/rdma_client.c.i"
-	/usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -E /users/nvarsha/rdma_connect/CSCI5572-AOS/src/Redis/rdma_client.c > CMakeFiles/rdma_client.dir/rdma_client.c.i
+	/usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -E /users/nvarsha/CSCI5572-AOS/src/Redis_example/rdma_client.c > CMakeFiles/rdma_client.dir/rdma_client.c.i
 
 CMakeFiles/rdma_client.dir/rdma_client.c.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling C source to assembly CMakeFiles/rdma_client.dir/rdma_client.c.s"
-	/usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -S /users/nvarsha/rdma_connect/CSCI5572-AOS/src/Redis/rdma_client.c -o CMakeFiles/rdma_client.dir/rdma_client.c.s
+	/usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -S /users/nvarsha/CSCI5572-AOS/src/Redis_example/rdma_client.c -o CMakeFiles/rdma_client.dir/rdma_client.c.s
 
 # Object files for target rdma_client
 rdma_client_OBJECTS = \
@@ -111,7 +111,7 @@ bin/rdma_client: CMakeFiles/rdma_client.dir/build.make
 bin/rdma_client: /usr/lib/x86_64-linux-gnu/libibverbs.so
 bin/rdma_client: /usr/lib/x86_64-linux-gnu/librdmacm.so
 bin/rdma_client: CMakeFiles/rdma_client.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/users/nvarsha/rdma_connect/CSCI5572-AOS/src/Redis/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Linking C executable bin/rdma_client"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/users/nvarsha/CSCI5572-AOS/src/Redis_example/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Linking C executable bin/rdma_client"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/rdma_client.dir/link.txt --verbose=$(VERBOSE)
 
 # Rule to build all files generated by this target.
@@ -123,6 +123,6 @@ CMakeFiles/rdma_client.dir/clean:
 .PHONY : CMakeFiles/rdma_client.dir/clean
 
 CMakeFiles/rdma_client.dir/depend:
-	cd /users/nvarsha/rdma_connect/CSCI5572-AOS/src/Redis && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /users/nvarsha/rdma_connect/CSCI5572-AOS/src/Redis /users/nvarsha/rdma_connect/CSCI5572-AOS/src/Redis /users/nvarsha/rdma_connect/CSCI5572-AOS/src/Redis /users/nvarsha/rdma_connect/CSCI5572-AOS/src/Redis /users/nvarsha/rdma_connect/CSCI5572-AOS/src/Redis/CMakeFiles/rdma_client.dir/DependInfo.cmake --color=$(COLOR)
+	cd /users/nvarsha/CSCI5572-AOS/src/Redis_example && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /users/nvarsha/CSCI5572-AOS/src/Redis_example /users/nvarsha/CSCI5572-AOS/src/Redis_example /users/nvarsha/CSCI5572-AOS/src/Redis_example /users/nvarsha/CSCI5572-AOS/src/Redis_example /users/nvarsha/CSCI5572-AOS/src/Redis_example/CMakeFiles/rdma_client.dir/DependInfo.cmake --color=$(COLOR)
 .PHONY : CMakeFiles/rdma_client.dir/depend
 
