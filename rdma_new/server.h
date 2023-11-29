@@ -14,8 +14,12 @@
 #include <rdma/rdma_cma.h>
 #include <infiniband/verbs.h>
 
-#define rdma_error(msg, args...) do { \
+#define error(msg, args...) do { \
     fprintf(stderr, "%s : %d : ERROR : " msg, __FILE__, __LINE__, ## args);\
+}while(0);
+
+#define info(msg, args...) do { \
+    fprintf(stdout, "%s : %d : ERROR : " msg, __FILE__, __LINE__, ## args);\
 }while(0);
 
 int get_addr(char *dst, struct sockaddr *addr)
@@ -24,7 +28,7 @@ int get_addr(char *dst, struct sockaddr *addr)
     int ret = -1;
     ret = getaddrinfo(dst, NULL, NULL, &res);
     if (ret) {
-        rdma_error("getaddrinfo failed - invalid hostname or IP address\n");
+        error("getaddrinfo failed - invalid hostname or IP address\n");
         return ret;
     }
     memcpy(addr, res->ai_addr, sizeof(struct sockaddr_in));
