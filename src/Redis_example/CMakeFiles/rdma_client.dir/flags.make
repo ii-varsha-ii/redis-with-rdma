@@ -4,7 +4,7 @@
 # compile C with /usr/bin/cc
 C_DEFINES = 
 
-C_INCLUDES = -I/users/nvarsha/rdma_connect/CSCI5572-AOS/src/Redis -I/home/atr/local/include
+C_INCLUDES = -I/users/nvarsha/CSCI5572-AOS/src/Redis_example -I/home/atr/local/include
 
 C_FLAGS = -O3 -DNDEBUG
 

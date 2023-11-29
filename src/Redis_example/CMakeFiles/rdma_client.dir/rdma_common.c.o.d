@@ -1,7 +1,7 @@
 CMakeFiles/rdma_client.dir/rdma_common.c.o: \
- /users/nvarsha/rdma_connect/CSCI5572-AOS/src/Redis/rdma_common.c \
+ /users/nvarsha/CSCI5572-AOS/src/Redis_example/rdma_common.c \
  /usr/include/stdc-predef.h \
- /users/nvarsha/rdma_connect/CSCI5572-AOS/src/Redis/rdma_common.h \
+ /users/nvarsha/CSCI5572-AOS/src/Redis_example/rdma_common.h \
  /usr/include/stdio.h \
  /usr/include/x86_64-linux-gnu/bits/libc-header-start.h \
  /usr/include/features.h /usr/include/features-time64.h \
