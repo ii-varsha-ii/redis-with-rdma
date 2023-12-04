@@ -1,0 +1,1 @@
+/usr/bin/cc -O3 -DNDEBUG -rdynamic CMakeFiles/client.dir/utils.c.o CMakeFiles/client.dir/client.c.o -o bin/client  -lpthread -libverbs -lrdmacm 

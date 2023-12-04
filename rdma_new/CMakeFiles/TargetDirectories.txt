@@ -1,3 +1,4 @@
 /users/nvarsha/CSCI5572-AOS/rdma_new/CMakeFiles/server.dir
+/users/nvarsha/CSCI5572-AOS/rdma_new/CMakeFiles/client.dir
 /users/nvarsha/CSCI5572-AOS/rdma_new/CMakeFiles/edit_cache.dir
 /users/nvarsha/CSCI5572-AOS/rdma_new/CMakeFiles/rebuild_cache.dir

@@ -1,6 +1,5 @@
-CMakeFiles/server.dir/server.c.o: \
- /users/nvarsha/CSCI5572-AOS/rdma_new/server.c /usr/include/stdc-predef.h \
- /users/nvarsha/CSCI5572-AOS/rdma_new/server.h \
+CMakeFiles/server.dir/utils.c.o: \
+ /users/nvarsha/CSCI5572-AOS/rdma_new/utils.c /usr/include/stdc-predef.h \
  /users/nvarsha/CSCI5572-AOS/rdma_new/utils.h /usr/include/stdio.h \
  /usr/include/aarch64-linux-gnu/bits/libc-header-start.h \
  /usr/include/features.h /usr/include/features-time64.h \
