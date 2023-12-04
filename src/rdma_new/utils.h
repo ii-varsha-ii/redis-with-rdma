@@ -31,9 +31,11 @@
 	fprintf(stderr, "%s : %d : ERROR : "msg, __FILE__, __LINE__, ## args);\
 }while(0);
 
-#define info(msg, args...) do { \
-    fprintf(stdout, "%s : %d : INFO : " msg, __FILE__, __LINE__, ## args);\
+#define info(msg, args...) do {\
+    printf("DEBUG: "msg, ## args);\
 }while(0);
+
+
 
 /*
  * We use attribute so that compiler does not step in and try to pad the structure.

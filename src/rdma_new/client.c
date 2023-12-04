@@ -56,7 +56,6 @@ static int client_prepare_connection(struct sockaddr_in *s_addr)
         return -errno;
     }
 
-
     info("waiting for cm event: RDMA_CM_EVENT_ADDR_RESOLVED\n");
     ret  = process_rdma_cm_event(cm_event_channel,
                                  RDMA_CM_EVENT_ADDR_RESOLVED,
@@ -348,6 +347,8 @@ static int client_remote_memory_ops()
         return ret;
     }
     info("Client side WRITE is complete \n");
+
+    // CLIENT READ
     /* Now we prepare a READ using same variables but for destination */
     client_send_sge.addr = (uint64_t) client_dst_mr->addr;
     client_send_sge.length = (uint32_t) client_dst_mr->length;
@@ -378,6 +379,12 @@ static int client_remote_memory_ops()
                    ret);
         return ret;
     }
+
+    info("The RDMA read data is ");
+    printf("buffer attr, addr: %s , len: %u\n",
+           (char*) client_dst_mr->addr,
+           (unsigned int) client_dst_mr->length);
+
     info("Client side READ is complete \n");
     return 0;
 }

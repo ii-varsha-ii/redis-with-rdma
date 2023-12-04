@@ -1,1 +1,0 @@
-/usr/bin/cc -O3 -DNDEBUG -rdynamic CMakeFiles/server.dir/utils.c.o CMakeFiles/server.dir/server.c.o -o bin/server  -lpthread -libverbs -lrdmacm 
