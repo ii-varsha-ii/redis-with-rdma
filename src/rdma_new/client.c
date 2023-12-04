@@ -57,7 +57,7 @@ static int client_prepare_connection(struct sockaddr_in *s_addr)
     }
 
     info("waiting for cm event: RDMA_CM_EVENT_ADDR_RESOLVED\n");
-    ret  = process_rdma_cm_event(cm_event_channel,
+    ret  = on_event(cm_event_channel,
                                  RDMA_CM_EVENT_ADDR_RESOLVED,
                                  &cm_event);
     if (ret) {
@@ -80,7 +80,7 @@ static int client_prepare_connection(struct sockaddr_in *s_addr)
         return -errno;
     }
     info("waiting for cm event: RDMA_CM_EVENT_ROUTE_RESOLVED\n");
-    ret = process_rdma_cm_event(cm_event_channel,
+    ret = on_event(cm_event_channel,
                                 RDMA_CM_EVENT_ROUTE_RESOLVED,
                                 &cm_event);
     if (ret) {
@@ -209,7 +209,7 @@ static int client_connect_to_server()
         return -errno;
     }
     info("waiting for cm event: RDMA_CM_EVENT_ESTABLISHED\n");
-    ret = process_rdma_cm_event(cm_event_channel,
+    ret = on_event(cm_event_channel,
                                 RDMA_CM_EVENT_ESTABLISHED,
                                 &cm_event);
     if (ret) {
@@ -384,7 +384,7 @@ static int client_remote_memory_ops()
     printf("buffer attr, addr: %s , len: %u\n",
            (char*) client_dst_mr->addr,
            (unsigned int) client_dst_mr->length);
-
+    sleep(10);
     info("Client side READ is complete \n");
     return 0;
 }
@@ -402,7 +402,7 @@ static int client_disconnect_and_clean()
         error("Failed to disconnect, errno: %d \n", -errno);
         //continuing anyways
     }
-    ret = process_rdma_cm_event(cm_event_channel,
+    ret = on_event(cm_event_channel,
                                 RDMA_CM_EVENT_DISCONNECTED,
                                 &cm_event);
     if (ret) {

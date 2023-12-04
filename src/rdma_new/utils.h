@@ -20,6 +20,8 @@
 #include <infiniband/verbs.h>
 
 #define DEFAULT_RDMA_PORT (12345)
+#define MAX_CONNECTION (5)
+
 #define CQ_CAPACITY (16)
 /* MAX SGE capacity */
 #define MAX_SGE (2)
@@ -65,7 +67,7 @@ void show_rdma_buffer_attr(struct rdma_buffer_attr *attr);
  * @expected_event: Expected event type
  * @cm_event: where the event will be stored
  */
-int process_rdma_cm_event(struct rdma_event_channel *echannel,
+int on_event(struct rdma_event_channel *echannel,
                           enum rdma_cm_event_type expected_event,
                           struct rdma_cm_event **cm_event);
 

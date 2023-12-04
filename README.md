@@ -3,6 +3,16 @@
 
 Cloudlab profile: https://github.com/ii-varsha-ii/CloudLab-RDMARoCE-profile.git
 
+    /* We have a valid connection identifier, lets start to allocate
+     * resources. We need:
+     * 1. Protection Domains (PD)
+     * 2. Memory Buffers
+     * 3. Completion Queues (CQ)
+     * 4. Queue Pair (QP)
+     * Protection Domain (PD) is similar to a "process abstraction"
+     * in the operating system. All resources are tied to a particular PD.
+     * And accessing recourses across PD will result in a protection fault.
+     */
 
 RDMA Updates:
 **Server**
