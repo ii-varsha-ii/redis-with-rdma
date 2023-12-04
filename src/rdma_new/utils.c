@@ -1,5 +1,7 @@
 #include "utils.h"
-int process_rdma_cm_event(struct rdma_event_channel *event_channel,
+
+
+int on_event(struct rdma_event_channel *event_channel,
                           enum rdma_cm_event_type expected_event,
                           struct rdma_cm_event **cm_event)
 {
@@ -13,7 +15,7 @@ int process_rdma_cm_event(struct rdma_event_channel *event_channel,
         return -errno;
     }
 
-    if(0 != (*cm_event)->status){
+    if( (*cm_event)->status != 0 ){
         error("CM event has non zero status: %d\n", (*cm_event)->status);
         ret = -((*cm_event)->status);
 
