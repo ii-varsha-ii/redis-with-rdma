@@ -29,5 +29,8 @@ include_directories("${PROJECT_SOURCE_DIR}" "/home/atr/local/include/")
 add_executable(rdma_server src/Redis_example/rdma_common.c
         src/Redis_example/rdma_server.c)
 add_executable(rdma_client src/Redis_example/rdma_common.c
-        src/Redis_example/rdma_client.c)
+        src/Redis_example/rdma_client.c
+        rdma_new/utils.c
+        rdma_new/utils.h
+        rdma_new/client.c)
 add_executable(rdma_new_server rdma_new/server.c)

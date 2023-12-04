@@ -205,7 +205,7 @@ static int accept_client_connection()
         error("Failed to pre-post the receive buffer, errno: %d \n", ret);
         return ret;
     }
-    info("Receive buffer pre-posting is successful \n");
+    info("Receive buffer for client metadata pre-posting is successful \n");
 
 
     memset(&conn_param, 0, sizeof(conn_param));
@@ -247,29 +247,22 @@ static int accept_client_connection()
     return ret;
 }
 
-/* This function sends server side buffer metadata to the connected client */
 static int send_server_metadata_to_client()
 {
     struct ibv_wc wc;
     int ret = -1;
-    /* Now, we first wait for the client to start the communication by
-     * sending the server its metadata info. The server does not use it
-     * in our example. We will receive a work completion notification for
-     * our pre-posted receive request.
-     */
-    // This is the WQ notification for the server receive buffer
+
+    // Waiting for client to send its metadata
     ret = process_work_completion_events(io_completion_channel, &wc, 1);
     if (ret != 1) {
         error("Failed to receive , ret = %d \n", ret);
         return ret;
     }
-    /* if all good, then we should have client's buffer information, lets see */
+
     printf("Client side buffer information is received...\n");
     show_rdma_buffer_attr(&client_metadata_attr);
     printf("The client has requested buffer length of : %u bytes \n",
            client_metadata_attr.length);
-    /* We need to setup requested memory buffer. This is where the client will
-    * do RDMA READs and WRITEs. */
 
     // Create memory buffer to do RDMA reads and writes. The length of the buffer will be given by the client
     server_buffer_mr = rdma_buffer_alloc(pd /* which protection domain */,
@@ -358,29 +351,32 @@ int main(int argc, char **argv) {
         server_socket_addr.sin_port = htons(DEFAULT_RDMA_PORT);
     }
 
-    ret = start_rdma_server(&server_socket_addr);
-    if (ret) {
-        error("RDMA server failed to start cleanly, ret = %d \n", ret);
-        return ret;
+    while(1) {
+        ret = start_rdma_server(&server_socket_addr);
+        if (ret) {
+            error("RDMA server failed to start cleanly, ret = %d \n", ret);
+            return ret;
+        }
+
+        ret = setup_client_resources();
+        if (ret) {
+            error("Failed to setup client resources, ret = %d \n", ret);
+            return ret;
+        }
+
+        ret = accept_client_connection();
+        if (ret) {
+            error("Failed to handle client cleanly, ret = %d \n", ret);
+            return ret;
+        }
+
+        ret = send_server_metadata_to_client();
+        if (ret) {
+            error("Failed to send server metadata to the client, ret = %d \n", ret);
+            return ret;
+        }
     }
 
-    ret = setup_client_resources();
-    if (ret) {
-        error("Failed to setup client resources, ret = %d \n", ret);
-        return ret;
-    }
-
-    ret = accept_client_connection();
-    if (ret) {
-        error("Failed to handle client cleanly, ret = %d \n", ret);
-        return ret;
-    }
-
-    ret = send_server_metadata_to_client();
-    if (ret) {
-        error("Failed to send server metadata to the client, ret = %d \n", ret);
-        return ret;
-    }
 //    ret = disconnect_and_cleanup();
 //    if (ret) {
 //        error("Failed to clean up resources properly, ret = %d \n", ret);
