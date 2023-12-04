@@ -8,8 +8,8 @@ set(CMAKE_DEPENDS_LANGUAGES
 
 # The set of dependency files which are needed:
 set(CMAKE_DEPENDS_DEPENDENCY_FILES
-  "/users/nvarsha/CSCI5572-AOS/rdma_new/server.c" "CMakeFiles/server.dir/server.c.o" "gcc" "CMakeFiles/server.dir/server.c.o.d"
-  "/users/nvarsha/CSCI5572-AOS/rdma_new/utils.c" "CMakeFiles/server.dir/utils.c.o" "gcc" "CMakeFiles/server.dir/utils.c.o.d"
+  "/users/nvarsha/CSCI5572-AOS/rdma_new/client.c" "CMakeFiles/client.dir/client.c.o" "gcc" "CMakeFiles/client.dir/client.c.o.d"
+  "/users/nvarsha/CSCI5572-AOS/rdma_new/utils.c" "CMakeFiles/client.dir/utils.c.o" "gcc" "CMakeFiles/client.dir/utils.c.o.d"
   )
 
 # Targets to which this target links.

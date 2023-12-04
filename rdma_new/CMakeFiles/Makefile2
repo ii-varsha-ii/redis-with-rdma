@@ -64,6 +64,7 @@ CMAKE_BINARY_DIR = /users/nvarsha/CSCI5572-AOS/rdma_new
 
 # The main recursive "all" target.
 all: CMakeFiles/server.dir/all
+all: CMakeFiles/client.dir/all
 .PHONY : all
 
 # The main recursive "preinstall" target.
@@ -72,6 +73,7 @@ preinstall:
 
 # The main recursive "clean" target.
 clean: CMakeFiles/server.dir/clean
+clean: CMakeFiles/client.dir/clean
 .PHONY : clean
 
 #=============================================================================
@@ -81,12 +83,12 @@ clean: CMakeFiles/server.dir/clean
 CMakeFiles/server.dir/all:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/users/nvarsha/CSCI5572-AOS/rdma_new/CMakeFiles --progress-num=1,2 "Built target server"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/users/nvarsha/CSCI5572-AOS/rdma_new/CMakeFiles --progress-num=4,5,6 "Built target server"
 .PHONY : CMakeFiles/server.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/server.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /users/nvarsha/CSCI5572-AOS/rdma_new/CMakeFiles 2
+	$(CMAKE_COMMAND) -E cmake_progress_start /users/nvarsha/CSCI5572-AOS/rdma_new/CMakeFiles 3
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/server.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /users/nvarsha/CSCI5572-AOS/rdma_new/CMakeFiles 0
 .PHONY : CMakeFiles/server.dir/rule
@@ -99,6 +101,32 @@ server: CMakeFiles/server.dir/rule
 CMakeFiles/server.dir/clean:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/clean
 .PHONY : CMakeFiles/server.dir/clean
+
+#=============================================================================
+# Target rules for target CMakeFiles/client.dir
+
+# All Build rule for target.
+CMakeFiles/client.dir/all:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/depend
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/build
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/users/nvarsha/CSCI5572-AOS/rdma_new/CMakeFiles --progress-num=1,2,3 "Built target client"
+.PHONY : CMakeFiles/client.dir/all
+
+# Build rule for subdir invocation for target.
+CMakeFiles/client.dir/rule: cmake_check_build_system
+	$(CMAKE_COMMAND) -E cmake_progress_start /users/nvarsha/CSCI5572-AOS/rdma_new/CMakeFiles 3
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/client.dir/all
+	$(CMAKE_COMMAND) -E cmake_progress_start /users/nvarsha/CSCI5572-AOS/rdma_new/CMakeFiles 0
+.PHONY : CMakeFiles/client.dir/rule
+
+# Convenience name for target.
+client: CMakeFiles/client.dir/rule
+.PHONY : client
+
+# clean rule for target.
+CMakeFiles/client.dir/clean:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/clean
+.PHONY : CMakeFiles/client.dir/clean
 
 #=============================================================================
 # Special targets to cleanup operation of make.
