@@ -14,7 +14,8 @@ static struct ibv_recv_wr client_recv_wr, *bad_client_recv_wr = NULL;
 static struct ibv_send_wr server_send_wr, *bad_server_send_wr = NULL;
 static struct ibv_sge client_recv_sge, server_send_sge;
 
-static struct exchange_buffer *server_buff = NULL, *client_buff = NULL;
+
+static struct exchange_buffer server_buff, client_buff;
 
 
 // client resources struct
@@ -114,15 +115,16 @@ static void accept_conn(struct rdma_cm_id *cm_client_id) {
 
 // Receive request for client to send the offset
 static int post_recv_offset(struct per_connection_struct* conn) {
-    client_buff = malloc(sizeof(struct exchange_buffer));
-    HANDLE(client_buff->buffer = rdma_buffer_register(client_res->pd,
-                                                      &client_buff->message,
+
+    client_buff.message = malloc(sizeof(struct msg));
+    HANDLE(client_buff.buffer = rdma_buffer_register(client_res->pd,
+                                                       client_buff.message,
                                                        sizeof(struct msg),
                                                        (IBV_ACCESS_LOCAL_WRITE)));
 
-    client_recv_sge.addr = (uint64_t)client_buff->message;
-    client_recv_sge.length = sizeof(struct msg);
-    client_recv_sge.lkey = client_buff->buffer->lkey;
+    client_recv_sge.addr = (uint64_t)client_buff.buffer->addr;
+    client_recv_sge.length = client_buff.buffer->length;
+    client_recv_sge.lkey = client_buff.buffer->lkey;
 
     bzero(&client_recv_wr, sizeof(client_recv_wr));
     client_recv_wr.sg_list = &client_recv_sge;
@@ -162,36 +164,36 @@ static void post_send_memory_map(struct per_connection_struct* conn) {
 
     // Receive the client metadata -
     HANDLE(process_work_completion_events(client_res->completion_channel, &wc, 1));
-    show_exchange_buffer(client_buff);
+    show_exchange_buffer(client_buff.message);
 
 
-    if (client_buff->message->type == OFFSET) {
-        
-        server_buff->message = malloc(sizeof(struct msg));
-        memset(server_buff->message, 0, sizeof(struct msg));
-        server_buff->message->type = ADDRESS;
-        memcpy(&server_buff->message->data.mr, conn->memory_region_mr, sizeof(struct ibv_mr));
-        server_buff->message->data.mr->addr = (void *)(conn->memory_region);
-
-        HANDLE(server_buff->buffer = rdma_buffer_register(client_res->pd,
-                                                          server_buff->message,
-                                                           sizeof(struct msg),
-                                                           (IBV_ACCESS_LOCAL_WRITE)));
-
-        server_send_sge.addr = (uint64_t) server_buff->message;
-        server_send_sge.length = sizeof(struct msg);
-        server_send_sge.lkey = server_buff->buffer->lkey;
-
-        bzero(&server_send_wr, sizeof(server_send_wr));
-        server_send_wr.sg_list = &server_send_sge;
-        server_send_wr.num_sge = 1;
-        server_send_wr.opcode = IBV_WR_SEND;
-        server_send_wr.send_flags = IBV_SEND_SIGNALED;
-
-        // memory map should have been initiated already. send that memory_map address
-        HANDLE_NZ(ibv_post_send(client_res->qp, &server_send_wr, &bad_server_send_wr));
-        HANDLE(process_work_completion_events(client_res->completion_channel, &wc, 1));
-    }
+//    if (client_buff->message->type == OFFSET) {
+//
+//        server_buff->message = malloc(sizeof(struct msg));
+//        memset(server_buff->message, 0, sizeof(struct msg));
+//        server_buff->message->type = ADDRESS;
+//        memcpy(&server_buff->message->data.mr, conn->memory_region_mr, sizeof(struct ibv_mr));
+//        server_buff->message->data.mr->addr = (void *)(conn->memory_region);
+//
+//        HANDLE(server_buff->buffer = rdma_buffer_register(client_res->pd,
+//                                                          server_buff->message,
+//                                                           sizeof(struct msg),
+//                                                           (IBV_ACCESS_LOCAL_WRITE)));
+//
+//        server_send_sge.addr = (uint64_t) server_buff->message;
+//        server_send_sge.length = sizeof(struct msg);
+//        server_send_sge.lkey = server_buff->buffer->lkey;
+//
+//        bzero(&server_send_wr, sizeof(server_send_wr));
+//        server_send_wr.sg_list = &server_send_sge;
+//        server_send_wr.num_sge = 1;
+//        server_send_wr.opcode = IBV_WR_SEND;
+//        server_send_wr.send_flags = IBV_SEND_SIGNALED;
+//
+//        // memory map should have been initiated already. send that memory_map address
+//        HANDLE_NZ(ibv_post_send(client_res->qp, &server_send_wr, &bad_server_send_wr));
+//        HANDLE(process_work_completion_events(client_res->completion_channel, &wc, 1));
+//    }
 }
 
 static int disconnect_and_cleanup(struct per_connection_struct* conn)
@@ -241,6 +243,12 @@ static int disconnect_and_cleanup(struct per_connection_struct* conn)
     return 0;
 }
 
+static void poll_for_completion_events(int num_wc) {
+    struct ibv_wc wc;
+    HANDLE(process_work_completion_events(client_res->completion_channel, &wc, num_wc));
+    show_exchange_buffer(client_buff.message);
+}
+
 static int wait_for_event() {
     int ret;
 
@@ -257,16 +265,17 @@ static int wait_for_event() {
                 connection = (struct per_connection_struct*) malloc (sizeof(struct per_connection_struct*));
                 rdma_ack_cm_event(dummy_event); //Ack the event
                 setup_client_resources(cm_event.id); // send a recv req for client_metadata
-                build_memory_map(connection);
+//                build_memory_map(connection);
                 post_recv_offset(connection);
                 accept_conn(cm_event.id);
                 break;
             case RDMA_CM_EVENT_ESTABLISHED:
                 rdma_ack_cm_event(dummy_event);
-                post_send_memory_map(connection);
+                poll_for_completion_events(1);
+//                post_send_memory_map(connection);
                 break;
             case RDMA_CM_EVENT_DISCONNECTED:
-                disconnect_and_cleanup(connection);
+//                disconnect_and_cleanup(connection);
                 break;
             default:
                 error("Event not found %s", (char *) cm_event.event);
