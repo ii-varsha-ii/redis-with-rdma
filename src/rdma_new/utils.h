@@ -60,18 +60,7 @@
 //    }stag;
 //};
 
-struct __attribute((packed)) exchange_buffer {
-    uint64_t address;
-    uint32_t length;
-    union stag {
-        /* if we send, we call it local stags */
-        uint32_t local_stag;
-        /* if we receive, we call it remote stag */
-        uint32_t remote_stag;
-    }stag;
-};
-
-struct __attribute((packed)) msg {
+struct msg {
     enum {
         OFFSET,
         ADDRESS
@@ -86,7 +75,7 @@ struct __attribute((packed)) msg {
 /* resolves a given destination name to sin_addr */
 int get_addr(char *dst, struct sockaddr *addr);
 
-void show_exchange_buffer(struct exchange_buffer *attr);
+void show_exchange_buffer(struct ibv_mr* attr);
 
 /*
  * Processes an RDMA connection management (CM) event.
