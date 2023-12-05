@@ -115,6 +115,17 @@ static int setup_client_resources(struct sockaddr_in *s_addr) {
 
 static int post_recv_server_memory_map(struct per_connection_struct* conn)
 {
+    int ret = -1;
+    struct ibv_wc *wc = NULL;
+    ret = process_work_completion_events(client_res->completion_channel,
+                                         wc, 1);
+    if(ret != 1) {
+        error("We failed to get 2 work completions , ret = %d \n",
+              ret);
+        return ret;
+    }
+    info("Server sent us its buffer location and credentials, showing \n");
+    show_exchange_buffer(conn->receive_buffer);
     HANDLE(conn->receive_buffer = rdma_buffer_register(client_res->pd,
                                 conn->receive_msg,
                                 sizeof(struct msg),
@@ -149,7 +160,7 @@ static void connect_to_server()
 
 static int post_send_to_server(struct per_connection_struct* conn)
 {
-    struct ibv_wc wc[2];
+    struct ibv_wc *wc = NULL;
     int ret = -1;
 
     conn->send_msg = malloc(sizeof(struct msg));
@@ -189,12 +200,13 @@ static int post_send_to_server(struct per_connection_struct* conn)
                         &client_send_wr,
                         &bad_client_send_wr));
 
+    info("sent offset");
     /* at this point we are expecting 2 work completion. One for our
      * send and one for recv that we will get from the server for
      * its buffer information */
     ret = process_work_completion_events(client_res->completion_channel,
-                                         wc, 2);
-    if(ret != 2) {
+                                         wc, 1);
+    if(ret != 1) {
         error("We failed to get 2 work completions , ret = %d \n",
                    ret);
         return ret;
@@ -389,7 +401,7 @@ static int wait_for_event(struct sockaddr_in *s_addr) {
             case RDMA_CM_EVENT_ROUTE_RESOLVED:
                 HANDLE_NZ(rdma_ack_cm_event(dummy_event));
                 setup_client_resources(s_addr);
-                post_recv_server_memory_map(connection);
+                //post_recv_server_memory_map(connection);
                 connect_to_server();
                 break;
             case RDMA_CM_EVENT_ESTABLISHED:
