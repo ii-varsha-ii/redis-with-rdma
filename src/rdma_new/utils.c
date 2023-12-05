@@ -68,6 +68,15 @@ void show_exchange_buffer(struct exchange_buffer *attr) {
            (unsigned int) attr->length,
            attr->stag.local_stag);
     printf("---------------------------------------------------------\n");
+    struct msg *message = (struct msg*) attr->address;
+    printf("message, type: %s\n",
+           (char*) message->type);
+    if(message->type == OFFSET) {
+        printf("message: offset: %lu", message->data.offset);
+    } else {
+        printf("message: data: %p, addr_length: %zu", message->data.mr->addr, message->data.mr->length);
+    }
+    printf("---------------------------------------------------------\n");
 }
 
 // Allocate a memory region - calloc and register that memory region
