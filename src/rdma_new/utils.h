@@ -28,6 +28,10 @@
 /* MAX work requests */
 #define MAX_WR (8)
 
+#define HANDLE(x)  do { if (!(x)) error(#x " failed (returned zero/null).\n"); } while (0)
+#define HANDLE_NZ(x) do { if ( (x)) error(#x " failed (returned non-zero)." ); } while (0)
+
+
 /* Error Macro*/
 #define error(msg, args...) do {\
 	fprintf(stderr, "%s : %d : ERROR : "msg, __FILE__, __LINE__, ## args);\
@@ -67,6 +71,17 @@ struct __attribute((packed)) exchange_buffer {
     }stag;
 };
 
+struct __attribute((packed)) msg {
+    enum {
+        OFFSET,
+        ADDRESS
+    }type;
+
+    union {
+        struct ibv_mr *mr;
+        unsigned long offset;
+    }data;
+};
 
 /* resolves a given destination name to sin_addr */
 int get_addr(char *dst, struct sockaddr *addr);
