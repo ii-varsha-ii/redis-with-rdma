@@ -116,7 +116,7 @@ static void accept_conn(struct rdma_cm_id *cm_client_id) {
 static int post_recv_offset(struct per_connection_struct* conn) {
     client_buff = malloc(sizeof(struct exchange_buffer));
     HANDLE(client_buff->buffer = rdma_buffer_register(client_res->pd,
-                                                      client_buff->message,
+                                                      &client_buff->message,
                                                        sizeof(struct msg),
                                                        (IBV_ACCESS_LOCAL_WRITE)));
 
@@ -166,7 +166,7 @@ static void post_send_memory_map(struct per_connection_struct* conn) {
 
 
     if (client_buff->message->type == OFFSET) {
-
+        
         server_buff->message = malloc(sizeof(struct msg));
         memset(server_buff->message, 0, sizeof(struct msg));
         server_buff->message->type = ADDRESS;
