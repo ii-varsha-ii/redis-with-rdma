@@ -14,6 +14,9 @@ static struct ibv_recv_wr client_recv_wr, *bad_client_recv_wr = NULL;
 static struct ibv_send_wr server_send_wr, *bad_server_send_wr = NULL;
 static struct ibv_sge client_recv_sge, server_send_sge;
 
+static struct exchange_buffer *server_buff = NULL, *client_buff = NULL;
+
+
 // client resources struct
 struct per_client_resources {
     struct ibv_pd *pd;
@@ -28,13 +31,6 @@ struct per_client_resources {
 struct per_connection_struct {
     char* memory_region;
     struct ibv_mr *memory_region_mr;
-
-    struct msg *send_msg;
-    struct ibv_mr *send_buffer;
-
-    struct msg *receive_msg;
-    struct ibv_mr *receive_buffer;
-
 };
 
 static struct per_client_resources *client_res = NULL;
@@ -115,15 +111,18 @@ static void accept_conn(struct rdma_cm_id *cm_client_id) {
     HANDLE_NZ(rdma_accept(cm_client_id, &conn_param));
     info("Wait for : RDMA_CM_EVENT_ESTABLISHED event \n");
 }
+
+// Receive request for client to send the offset
 static int post_recv_offset(struct per_connection_struct* conn) {
-    HANDLE(conn->receive_buffer = rdma_buffer_register(client_res->pd,
-                                                       conn->receive_msg,
+    client_buff = malloc(sizeof(struct exchange_buffer));
+    HANDLE(client_buff->buffer = rdma_buffer_register(client_res->pd,
+                                                      client_buff->message,
                                                        sizeof(struct msg),
                                                        (IBV_ACCESS_LOCAL_WRITE)));
 
-    client_recv_sge.addr = (uint64_t)conn->receive_msg;
+    client_recv_sge.addr = (uint64_t)client_buff->message;
     client_recv_sge.length = sizeof(struct msg);
-    client_recv_sge.lkey = conn->receive_buffer->lkey;
+    client_recv_sge.lkey = client_buff->buffer->lkey;
 
     bzero(&client_recv_wr, sizeof(client_recv_wr));
     client_recv_wr.sg_list = &client_recv_sge;
@@ -150,7 +149,7 @@ static void build_memory_map(struct per_connection_struct *conn) {
 
 }
 
-static void post_send_memory_map(struct per_connection_struct* connect) {
+static void post_send_memory_map(struct per_connection_struct* conn) {
     struct sockaddr_in remote_sockaddr;
     struct ibv_wc wc;
 
@@ -163,24 +162,25 @@ static void post_send_memory_map(struct per_connection_struct* connect) {
 
     // Receive the client metadata -
     HANDLE(process_work_completion_events(client_res->completion_channel, &wc, 1));
-    show_exchange_buffer(connect->receive_buffer);
+    show_exchange_buffer(client_buff);
 
-    struct msg *received_msg = (struct msg *) connect->receive_buffer->addr;
 
-    if (received_msg->type == OFFSET) {
+    if (client_buff->message->type == OFFSET) {
 
-        connect->send_msg->type = ADDRESS;
-        memcpy(&connect->send_msg->data.mr, connect->memory_region_mr, sizeof(struct ibv_mr));
-        connect->send_msg->data.mr->addr = (void *)(connect->memory_region);
+        server_buff->message = malloc(sizeof(struct msg));
+        memset(server_buff->message, 0, sizeof(struct msg));
+        server_buff->message->type = ADDRESS;
+        memcpy(&server_buff->message->data.mr, conn->memory_region_mr, sizeof(struct ibv_mr));
+        server_buff->message->data.mr->addr = (void *)(conn->memory_region);
 
-        HANDLE(connect->send_buffer = rdma_buffer_register(client_res->pd,
-                                                           connect->send_msg,
+        HANDLE(server_buff->buffer = rdma_buffer_register(client_res->pd,
+                                                          server_buff->message,
                                                            sizeof(struct msg),
                                                            (IBV_ACCESS_LOCAL_WRITE)));
 
-        server_send_sge.addr = (uint64_t) connect->send_msg;
+        server_send_sge.addr = (uint64_t) server_buff->message;
         server_send_sge.length = sizeof(struct msg);
-        server_send_sge.lkey = connect->send_buffer->lkey;
+        server_send_sge.lkey = server_buff->buffer->lkey;
 
         bzero(&server_send_wr, sizeof(server_send_wr));
         server_send_wr.sg_list = &server_send_sge;

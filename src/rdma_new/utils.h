@@ -41,7 +41,10 @@
     printf("DEBUG: "msg, ## args);\
 }while(0);
 
-
+struct exchange_buffer {
+    struct msg *message;
+    struct ibv_mr* buffer;
+};
 
 /*
  * We use attribute so that compiler does not step in and try to pad the structure.
@@ -75,7 +78,7 @@ struct msg {
 /* resolves a given destination name to sin_addr */
 int get_addr(char *dst, struct sockaddr *addr);
 
-void show_exchange_buffer(struct ibv_mr* attr);
+void show_exchange_buffer(struct exchange_buffer* attr);
 
 /*
  * Processes an RDMA connection management (CM) event.

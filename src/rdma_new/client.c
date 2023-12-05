@@ -17,6 +17,9 @@ static struct ibv_mr *client_metadata_mr = NULL,
 static struct ibv_send_wr client_send_wr, *bad_client_send_wr = NULL;
 static struct ibv_recv_wr server_recv_wr, *bad_server_recv_wr = NULL;
 static struct ibv_sge client_send_sge, server_recv_sge;
+
+static struct exchange_buffer *server_buff = NULL, *client_buff = NULL;
+
 /* Source and Destination buffers, where RDMA operations source and sink */
 static char *src = NULL, *dst = NULL;
 
@@ -115,24 +118,14 @@ static int setup_client_resources(struct sockaddr_in *s_addr) {
 
 static int post_recv_server_memory_map(struct per_connection_struct* conn)
 {
-    int ret = -1;
-    struct ibv_wc *wc = NULL;
-    ret = process_work_completion_events(client_res->completion_channel,
-                                         wc, 1);
-    if(ret != 1) {
-        error("We failed to get 2 work completions , ret = %d \n",
-              ret);
-        return ret;
-    }
-    info("Server sent us its buffer location and credentials, showing \n");
-    show_exchange_buffer(conn->receive_buffer);
-    HANDLE(conn->receive_buffer = rdma_buffer_register(client_res->pd,
-                                conn->receive_msg,
+    server_buff = malloc(sizeof(struct exchange_buffer));
+    HANDLE(server_buff->buffer = rdma_buffer_register(client_res->pd,
+                                &server_buff->message,
                                 sizeof(struct msg),
                                 (IBV_ACCESS_LOCAL_WRITE)));
-    server_recv_sge.addr = (uint64_t) conn->receive_msg;
+    server_recv_sge.addr = (uint64_t) server_buff->message;
     server_recv_sge.length = (uint32_t) sizeof(struct msg);
-    server_recv_sge.lkey = (uint32_t) conn->receive_buffer->lkey;
+    server_recv_sge.lkey = (uint32_t) server_buff->buffer->lkey;
 
     bzero(&server_recv_wr, sizeof(server_recv_wr));
     server_recv_wr.sg_list = &server_recv_sge;
@@ -163,10 +156,10 @@ static int post_send_to_server(struct per_connection_struct* conn)
     struct ibv_wc *wc = NULL;
     int ret = -1;
 
-    conn->send_msg = malloc(sizeof(struct msg));
+    client_buff->message = malloc(sizeof(struct msg));
     // send msg with offset and offset num as 0
-    conn->send_msg->type = OFFSET;
-    conn->send_msg->data.offset = 0;
+    client_buff->message->type = OFFSET;
+    client_buff->message->data.offset = 0;
 
     /* conn->send_buffer = ( conn->send_msg )
      * client_metadata_attr.address = conn->send_buffer
@@ -176,17 +169,17 @@ static int post_send_to_server(struct per_connection_struct* conn)
      * */
 
     // Create a client memory buffer
-    HANDLE(conn->send_buffer = rdma_buffer_register(client_res->pd,
-                                         conn->send_msg,
+    HANDLE(client_buff->buffer = rdma_buffer_register(client_res->pd,
+                                        client_buff->message,
                                          sizeof(struct msg),
                                          (IBV_ACCESS_LOCAL_WRITE|
                                           IBV_ACCESS_REMOTE_READ|
                                           IBV_ACCESS_REMOTE_WRITE)));
 
     // Create SGE for Work Request
-    client_send_sge.addr = (uint64_t) conn->send_msg;
+    client_send_sge.addr = (uint64_t) client_buff->message;
     client_send_sge.length = (uint32_t) sizeof(struct msg);
-    client_send_sge.lkey = conn->send_buffer->lkey;
+    client_send_sge.lkey = client_buff->buffer->lkey;
 
     // Link the SGE to the Work Request
     bzero(&client_send_wr, sizeof(client_send_wr));
@@ -212,7 +205,7 @@ static int post_send_to_server(struct per_connection_struct* conn)
         return ret;
     }
     info("Server sent us its buffer location and credentials, showing \n");
-    show_exchange_buffer(conn->receive_buffer);
+    show_exchange_buffer(server_buff);
     return 0;
 }
 
@@ -401,7 +394,7 @@ static int wait_for_event(struct sockaddr_in *s_addr) {
             case RDMA_CM_EVENT_ROUTE_RESOLVED:
                 HANDLE_NZ(rdma_ack_cm_event(dummy_event));
                 setup_client_resources(s_addr);
-                //post_recv_server_memory_map(connection);
+                post_recv_server_memory_map(connection);
                 connect_to_server();
                 break;
             case RDMA_CM_EVENT_ESTABLISHED:
