@@ -56,18 +56,14 @@ void show_rdma_cmid(struct rdma_cm_id *id)
            id->port_num);
 }
 
-void show_exchange_buffer(struct exchange_buffer *attr) {
-    if(!attr){
-        error("Passed attr is NULL\n");
-        return;
-    }
+void show_exchange_buffer(struct msg *attr) {
+    printf("Show exchange buffer: \n");
     printf("---------------------------------------------------------\n");
-    printf("message, type: %d\n",
-           attr->message->type);
-    if(attr->message->type == OFFSET) {
-        printf("message: offset: %lu \n ", attr->message->data.offset);
+    printf("message, type: %d\n", attr->type);
+    if(attr->type == OFFSET) {
+        printf("message: offset: %lu \n", attr->data.offset);
     } else {
-        printf("message: data: %p, addr_length: %zu \n ", attr->message->data.mr->addr, attr->message->data.mr->length);
+        printf("message: data: %p, addr_length: %zu \n", attr->data.mr->addr, attr->data.mr->length);
     }
     printf("---------------------------------------------------------\n");
 }
