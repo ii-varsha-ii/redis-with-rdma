@@ -45,7 +45,18 @@
  *
  * For details see: http://gcc.gnu.org/onlinedocs/gcc/Type-Attributes.html
  */
-struct __attribute((packed)) rdma_buffer_attr {
+//struct __attribute((packed)) rdma_buffer_attr {
+//    uint64_t address;
+//    uint32_t length;
+//    union stag {
+//        /* if we send, we call it local stags */
+//        uint32_t local_stag;
+//        /* if we receive, we call it remote stag */
+//        uint32_t remote_stag;
+//    }stag;
+//};
+
+struct __attribute((packed)) exchange_buffer {
     uint64_t address;
     uint32_t length;
     union stag {
@@ -55,11 +66,12 @@ struct __attribute((packed)) rdma_buffer_attr {
         uint32_t remote_stag;
     }stag;
 };
+
+
 /* resolves a given destination name to sin_addr */
 int get_addr(char *dst, struct sockaddr *addr);
 
-/* prints RDMA buffer info structure */
-void show_rdma_buffer_attr(struct rdma_buffer_attr *attr);
+void show_exchange_buffer(struct exchange_buffer *attr);
 
 /*
  * Processes an RDMA connection management (CM) event.

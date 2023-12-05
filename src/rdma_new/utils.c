@@ -1,6 +1,8 @@
 #include "utils.h"
 
 
+
+
 int on_event(struct rdma_event_channel *event_channel,
                           enum rdma_cm_event_type expected_event,
                           struct rdma_cm_event **cm_event)
@@ -54,11 +56,12 @@ void show_rdma_cmid(struct rdma_cm_id *id)
            id->port_num);
 }
 
-void show_rdma_buffer_attr(struct rdma_buffer_attr *attr){
+void show_exchange_buffer(struct exchange_buffer *attr) {
     if(!attr){
         error("Passed attr is NULL\n");
         return;
     }
+    printf("Show exchange buffer: \n");
     printf("---------------------------------------------------------\n");
     printf("buffer attr, addr: %p , len: %u , stag : 0x%x \n",
            (void*) attr->address,
@@ -137,7 +140,6 @@ void rdma_buffer_deregister(struct ibv_mr *mr)
           mr->lkey);
     ibv_dereg_mr(mr);
 }
-
 
 int process_work_completion_events (struct ibv_comp_channel *comp_channel,
                                     struct ibv_wc *wc, int max_wc)

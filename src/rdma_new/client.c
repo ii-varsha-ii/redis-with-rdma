@@ -13,7 +13,7 @@ static struct ibv_mr *client_metadata_mr = NULL,
         *client_src_mr = NULL,
         *client_dst_mr = NULL,
         *server_metadata_mr = NULL;
-static struct rdma_buffer_attr client_metadata_attr, server_metadata_attr;
+static struct exchange_buffer client_metadata_attr, server_metadata_attr;
 static struct ibv_send_wr client_send_wr, *bad_client_send_wr = NULL;
 static struct ibv_recv_wr server_recv_wr, *bad_server_recv_wr = NULL;
 static struct ibv_sge client_send_sge, server_recv_sge;
@@ -250,6 +250,7 @@ static int client_xchange_metadata_with_server()
     client_metadata_attr.address = (uint64_t) client_src_mr->addr;
     client_metadata_attr.length = client_src_mr->length;
     client_metadata_attr.stag.local_stag = client_src_mr->lkey;
+
     /* now we register the metadata memory */
     client_metadata_mr = rdma_buffer_register(pd,
                                               &client_metadata_attr,
@@ -291,7 +292,7 @@ static int client_xchange_metadata_with_server()
         return ret;
     }
     info("Server sent us its buffer location and credentials, showing \n");
-    show_rdma_buffer_attr(&server_metadata_attr);
+    show_exchange_buffer(&server_metadata_attr);
     return 0;
 }
 
@@ -359,6 +360,8 @@ static int client_remote_memory_ops()
     client_send_wr.num_sge = 1;
     client_send_wr.opcode = IBV_WR_RDMA_READ;
     client_send_wr.send_flags = IBV_SEND_SIGNALED;
+
+
     /* we have to tell server side info for RDMA */
     client_send_wr.wr.rdma.rkey = server_metadata_attr.stag.remote_stag;
     client_send_wr.wr.rdma.remote_addr = server_metadata_attr.address;
@@ -384,7 +387,6 @@ static int client_remote_memory_ops()
     printf("buffer attr, addr: %s , len: %u\n",
            (char*) client_dst_mr->addr,
            (unsigned int) client_dst_mr->length);
-    sleep(10);
     info("Client side READ is complete \n");
     return 0;
 }
@@ -533,21 +535,21 @@ int main(int argc, char **argv) {
         error("Failed to setup client connection , ret = %d \n", ret);
         return ret;
     }
-    ret = client_remote_memory_ops();
-    if (ret) {
-        error("Failed to finish remote memory ops, ret = %d \n", ret);
-        return ret;
-    }
-    if (check_src_dst()) {
-        error("src and dst buffers do not match \n");
-    } else {
-        printf("...\nSUCCESS, source and destination buffers match \n");
-    }
-
-    ret = client_disconnect_and_clean();
-    if (ret) {
-        error("Failed to cleanly disconnect and clean up resources \n");
-    }
+//    ret = client_remote_memory_ops();
+//    if (ret) {
+//        error("Failed to finish remote memory ops, ret = %d \n", ret);
+//        return ret;
+//    }
+//    if (check_src_dst()) {
+//        error("src and dst buffers do not match \n");
+//    } else {
+//        printf("...\nSUCCESS, source and destination buffers match \n");
+//    }
+//
+//    ret = client_disconnect_and_clean();
+//    if (ret) {
+//        error("Failed to cleanly disconnect and clean up resources \n");
+//    }
     return ret;
 
 }
