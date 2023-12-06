@@ -1,8 +1,5 @@
 #include "utils.h"
 
-#define DATA_SIZE 1024*5
-#define BLOCK_SIZE 1024
-
 static struct rdma_cm_id *cm_server_id = NULL;
 static struct rdma_event_channel *cm_event_channel = NULL;
 static struct ibv_qp_init_attr qp_init_attr; // client queue pair attributes
@@ -32,6 +29,7 @@ struct per_client_resources {
 struct per_connection_struct {
     char* memory_region;
     struct ibv_mr *memory_region_mr;
+    unsigned long *mapping_table_start;
 };
 
 static struct per_client_resources *client_res = NULL;
@@ -138,17 +136,17 @@ static int post_recv_offset(struct per_connection_struct* conn) {
 }
 
 static void build_memory_map(struct per_connection_struct *conn) {
-
     conn->memory_region = malloc( DATA_SIZE  + (8 * (DATA_SIZE / BLOCK_SIZE)));
-    memset(conn->memory_region, 0, DATA_SIZE  + (8 * (DATA_SIZE / BLOCK_SIZE)));
+    memset(conn->memory_region, 11, DATA_SIZE  + (8 * (DATA_SIZE / BLOCK_SIZE)));
 
     conn->memory_region_mr = rdma_buffer_register(client_res->pd,
                                                      conn->memory_region,
                                                      DATA_SIZE  + (8 * (DATA_SIZE / BLOCK_SIZE)),
                                                      (IBV_ACCESS_LOCAL_WRITE|
-                                                      IBV_ACCESS_REMOTE_READ|
-                                                      IBV_ACCESS_REMOTE_WRITE));
+                                                      IBV_ACCESS_REMOTE_READ));
 
+    conn->mapping_table_start = (unsigned long * ) conn->memory_region;
+    info("Initiated memory map: %p\n", conn->mapping_table_start);
 }
 
 static void post_send_memory_map(struct per_connection_struct* conn) {
@@ -162,38 +160,42 @@ static void post_send_memory_map(struct per_connection_struct* conn) {
     printf("A new connection is accepted from %s \n",
            inet_ntoa(remote_sockaddr.sin_addr));
 
-    // Receive the client metadata -
-    HANDLE(process_work_completion_events(client_res->completion_channel, &wc, 1));
-    show_exchange_buffer(client_buff.message);
 
+    if (client_buff.message->type == OFFSET) {
 
-//    if (client_buff->message->type == OFFSET) {
-//
-//        server_buff->message = malloc(sizeof(struct msg));
-//        memset(server_buff->message, 0, sizeof(struct msg));
-//        server_buff->message->type = ADDRESS;
-//        memcpy(&server_buff->message->data.mr, conn->memory_region_mr, sizeof(struct ibv_mr));
-//        server_buff->message->data.mr->addr = (void *)(conn->memory_region);
-//
-//        HANDLE(server_buff->buffer = rdma_buffer_register(client_res->pd,
-//                                                          server_buff->message,
-//                                                           sizeof(struct msg),
-//                                                           (IBV_ACCESS_LOCAL_WRITE)));
-//
-//        server_send_sge.addr = (uint64_t) server_buff->message;
-//        server_send_sge.length = sizeof(struct msg);
-//        server_send_sge.lkey = server_buff->buffer->lkey;
-//
-//        bzero(&server_send_wr, sizeof(server_send_wr));
-//        server_send_wr.sg_list = &server_send_sge;
-//        server_send_wr.num_sge = 1;
-//        server_send_wr.opcode = IBV_WR_SEND;
-//        server_send_wr.send_flags = IBV_SEND_SIGNALED;
-//
-//        // memory map should have been initiated already. send that memory_map address
-//        HANDLE_NZ(ibv_post_send(client_res->qp, &server_send_wr, &bad_server_send_wr));
-//        HANDLE(process_work_completion_events(client_res->completion_channel, &wc, 1));
-//    }
+        server_buff.message = malloc(sizeof(struct msg));
+        server_buff.message->type = ADDRESS;
+
+        memcpy(&server_buff.message->data.mr, conn->memory_region_mr, sizeof(struct ibv_mr));
+        server_buff.message->data.mr.addr = (void *)(conn->memory_region);
+
+        server_buff.buffer = rdma_buffer_register(client_res->pd,
+                                                          server_buff.message,
+                                                           sizeof(struct msg),
+                                                           (IBV_ACCESS_LOCAL_WRITE|
+                                                            IBV_ACCESS_REMOTE_READ));
+
+        if (server_buff.buffer) {
+            printf("%p %lu %u", server_buff.buffer->addr, server_buff.buffer->length, server_buff.buffer->lkey);
+        }
+
+        printf("\n Sending client the below messsage. \n");
+        show_exchange_buffer(server_buff.message);
+
+        server_send_sge.addr = (uint64_t) server_buff.message;
+        server_send_sge.length = (uint32_t) sizeof(struct msg);
+        server_send_sge.lkey = server_buff.buffer->lkey;
+
+        bzero(&server_send_wr, sizeof(server_send_wr));
+        server_send_wr.sg_list = &server_send_sge;
+        server_send_wr.num_sge = 1;
+        server_send_wr.opcode = IBV_WR_SEND;
+        server_send_wr.send_flags = IBV_SEND_SIGNALED;
+
+        // memory map should have been initiated already. send that memory_map address
+        HANDLE_NZ(ibv_post_send(client_res->qp, &server_send_wr, &bad_server_send_wr));
+        info("info send successfully");
+    }
 }
 
 static int disconnect_and_cleanup(struct per_connection_struct* conn)
@@ -265,14 +267,14 @@ static int wait_for_event() {
                 connection = (struct per_connection_struct*) malloc (sizeof(struct per_connection_struct*));
                 rdma_ack_cm_event(dummy_event); //Ack the event
                 setup_client_resources(cm_event.id); // send a recv req for client_metadata
-//                build_memory_map(connection);
+                build_memory_map(connection);
                 post_recv_offset(connection);
                 accept_conn(cm_event.id);
                 break;
             case RDMA_CM_EVENT_ESTABLISHED:
                 rdma_ack_cm_event(dummy_event);
                 poll_for_completion_events(1);
-//                post_send_memory_map(connection);
+                post_send_memory_map(connection);
                 break;
             case RDMA_CM_EVENT_DISCONNECTED:
 //                disconnect_and_cleanup(connection);
