@@ -35,15 +35,9 @@ struct per_client_resources {
 
 // connection struct
 struct per_connection_struct {
-    char* memory_region;
-    struct ibv_mr *memory_region_mr;
-
-    struct msg *send_msg;
-    struct ibv_mr *send_buffer;
-
-    struct msg *receive_msg;
-    struct ibv_mr *receive_buffer;
-
+    struct ibv_mr server_mr;
+    char* local_memory_region;
+    struct ibv_mr *local_memory_region_mr;
 };
 
 static struct per_client_resources *client_res = NULL;
@@ -116,15 +110,17 @@ static int setup_client_resources(struct sockaddr_in *s_addr) {
     return 0;
 }
 
-static int post_recv_server_memory_map(struct per_connection_struct* conn)
+static int post_recv_server_memory_map()
 {
+    server_buff.message = malloc(sizeof(struct msg));
     HANDLE(server_buff.buffer = rdma_buffer_register(client_res->pd,
-                                &server_buff.message,
+                                server_buff.message,
                                 sizeof(struct msg),
                                 (IBV_ACCESS_LOCAL_WRITE)));
+
     server_recv_sge.addr = (uint64_t) server_buff.message;
     server_recv_sge.length = (uint32_t) sizeof(struct msg);
-    server_recv_sge.lkey = (uint32_t) server_buff.buffer->lkey;
+    server_recv_sge.lkey = server_buff.buffer->lkey;
 
     bzero(&server_recv_wr, sizeof(server_recv_wr));
     server_recv_wr.sg_list = &server_recv_sge;
@@ -182,14 +178,11 @@ static int post_send_to_server(struct per_connection_struct* conn)
     client_send_wr.opcode = IBV_WR_SEND;
     client_send_wr.send_flags = IBV_SEND_SIGNALED;
 
-    printf("Hello");
     // Now Post Send Work Request to the server
     HANDLE_NZ(ibv_post_send(client_res->qp,
                         &client_send_wr,
                         &bad_client_send_wr));
 
-//    info("Server sent us its buffer location and credentials, showing \n");
-//    show_exchange_buffer(server_buff);
     return 0;
 }
 
@@ -360,6 +353,54 @@ void usage() {
     exit(1);
 }
 
+static void poll_for_completion_events(int num_wc) {
+    struct ibv_wc wc;
+    HANDLE(process_work_completion_events(client_res->completion_channel, &wc, num_wc));
+    show_exchange_buffer(server_buff.message);
+}
+
+static void build_memory_map(struct per_connection_struct *conn) {
+    conn->local_memory_region = malloc( DATA_SIZE  + (8 * (DATA_SIZE / BLOCK_SIZE)));
+    memset(conn->local_memory_region, 2, DATA_SIZE  + (8 * (DATA_SIZE / BLOCK_SIZE)));
+
+    conn->local_memory_region_mr = rdma_buffer_register(client_res->pd,
+                                                  conn->local_memory_region,
+                                                  DATA_SIZE  + (8 * (DATA_SIZE / BLOCK_SIZE)),
+                                                  (IBV_ACCESS_LOCAL_WRITE|
+                                                   IBV_ACCESS_REMOTE_READ|
+                                                   IBV_ACCESS_REMOTE_WRITE));
+
+    info("Initiated memory map: %p\n", conn->local_memory_region);
+}
+
+static void copy_received_memory_map(struct per_connection_struct* conn) {
+    poll_for_completion_events(2);
+
+    memcpy(&conn->server_mr, &server_buff.message->data.mr, sizeof(conn->server_mr));
+
+    printf("conn->server_mr.addr %p \n", conn->server_mr.addr);
+
+//    // Create SGE for Work Request
+    client_send_sge.addr = (uintptr_t)(conn->local_memory_region);
+    client_send_sge.length = (uint32_t) DATA_SIZE  + (8 * (DATA_SIZE / BLOCK_SIZE));
+    client_send_sge.lkey = conn->local_memory_region_mr->lkey;
+
+    // Link the SGE to the Work Request
+    bzero(&client_send_wr, sizeof(client_send_wr));
+    client_send_wr.sg_list = &client_send_sge;
+    client_send_wr.num_sge = 1;
+    client_send_wr.opcode = IBV_WR_RDMA_READ;
+    client_send_wr.send_flags = IBV_SEND_SIGNALED;
+    client_send_wr.wr.rdma.remote_addr = (uintptr_t) conn->server_mr.addr;
+    client_send_wr.wr.rdma.rkey = conn->server_mr.rkey;
+
+//    // Now Post Send Work Request to the server
+    HANDLE_NZ(ibv_post_send(client_res->qp,
+                            &client_send_wr,
+                            &bad_client_send_wr));
+    //printf("%p", conn->local_memory_region_mr->addr);
+}
+
 static int wait_for_event(struct sockaddr_in *s_addr) {
 
     struct rdma_cm_event *dummy_event = NULL;
@@ -378,12 +419,19 @@ static int wait_for_event(struct sockaddr_in *s_addr) {
             case RDMA_CM_EVENT_ROUTE_RESOLVED:
                 HANDLE_NZ(rdma_ack_cm_event(dummy_event));
                 setup_client_resources(s_addr);
-                //post_recv_server_memory_map(connection);
+                build_memory_map(connection);
+                post_recv_server_memory_map();
                 connect_to_server();
                 break;
             case RDMA_CM_EVENT_ESTABLISHED:
                 HANDLE_NZ(rdma_ack_cm_event(dummy_event));
                 post_send_to_server(connection);
+                copy_received_memory_map(connection);
+                poll_for_completion_events(1);
+                char* p = connection->local_memory_region;
+                for (int i = 0; i < 10; i++) {
+                    printf("%d \n", p[i]);
+                }
                 break;
             default:
                 error("Event not found %s", (char *) cm_event.event);

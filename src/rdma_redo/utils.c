@@ -57,13 +57,14 @@ void show_rdma_cmid(struct rdma_cm_id *id)
 }
 
 void show_exchange_buffer(struct msg *attr) {
-    printf("Show exchange buffer: \n");
     printf("---------------------------------------------------------\n");
+    printf("message %p\n", attr);
     printf("message, type: %d\n", attr->type);
     if(attr->type == OFFSET) {
         printf("message: offset: %lu \n", attr->data.offset);
-    } else {
-        printf("message: data: %p, addr_length: %zu \n", attr->data.mr->addr, attr->data.mr->length);
+    }
+    if (attr->type == ADDRESS){
+        printf("message data %p", attr->data.mr.addr);
     }
     printf("---------------------------------------------------------\n");
 }

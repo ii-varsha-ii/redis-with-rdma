@@ -41,7 +41,8 @@
     printf("DEBUG: "msg, ## args);\
 }while(0);
 
-
+#define DATA_SIZE 1024*5
+#define BLOCK_SIZE 1024
 
 /*
  * We use attribute so that compiler does not step in and try to pad the structure.
@@ -49,16 +50,16 @@
  *
  * For details see: http://gcc.gnu.org/onlinedocs/gcc/Type-Attributes.html
  */
-//struct __attribute((packed)) rdma_buffer_attr {
-//    uint64_t address;
-//    uint32_t length;
-//    union stag {
-//        /* if we send, we call it local stags */
-//        uint32_t local_stag;
-//        /* if we receive, we call it remote stag */
-//        uint32_t remote_stag;
-//    }stag;
-//};
+struct __attribute((packed)) rdma_buffer_attr {
+    uint64_t address;
+    uint32_t length;
+    union stag {
+        /* if we send, we call it local stags */
+        uint32_t local_stag;
+        /* if we receive, we call it remote stag */
+        uint32_t remote_stag;
+    }stag;
+};
 
 
 struct exchange_buffer {
@@ -74,7 +75,7 @@ struct msg {
     }type;
 
     union {
-        struct ibv_mr *mr;
+        struct ibv_mr mr;
         unsigned long offset;
     }data;
 };
