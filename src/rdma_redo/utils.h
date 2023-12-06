@@ -1,7 +1,3 @@
-//
-// Created by nvarsha on 12/3/23.
-//
-
 #ifndef CSCI5572_AOS_UTILS_H
 #define CSCI5572_AOS_UTILS_H
 
@@ -21,52 +17,44 @@
 
 #define DEFAULT_RDMA_PORT (12345)
 #define MAX_CONNECTION (5)
+#define ENABLE_ERROR
+#define ENABLE_DEBUG
 
 #define CQ_CAPACITY (16)
-/* MAX SGE capacity */
 #define MAX_SGE (2)
-/* MAX work requests */
 #define MAX_WR (8)
 
 #define HANDLE(x)  do { if (!(x)) error(#x " failed (returned zero/null).\n"); } while (0)
 #define HANDLE_NZ(x) do { if ( (x)) error(#x " failed (returned non-zero)." ); } while (0)
 
+#ifdef ENABLE_ERROR
+    #define error(msg, args...) do {\
+        fprintf(stderr, "%s : %d : ERROR : "msg, __FILE__, __LINE__, ## args);\
+    }while(0);
+#else
+    #define error(msg, args...)
+#endif
 
-/* Error Macro*/
-#define error(msg, args...) do {\
-	fprintf(stderr, "%s : %d : ERROR : "msg, __FILE__, __LINE__, ## args);\
-}while(0);
-
-#define info(msg, args...) do {\
+#ifdef ENABLE_DEBUG
+#define debug(msg, args...) do {\
     printf("DEBUG: "msg, ## args);\
 }while(0);
 
-#define DATA_SIZE 1024*5
+#else
+    #define debug(msg, args...)
+#endif
+
+#define info(msg, args...) do {\
+    printf("log: "msg, ## args);\
+}while(0);
+
+#define DATA_SIZE 1024 * 5
 #define BLOCK_SIZE 1024
-
-/*
- * We use attribute so that compiler does not step in and try to pad the structure.
- * We use this structure to exchange information between the server and the client.
- *
- * For details see: http://gcc.gnu.org/onlinedocs/gcc/Type-Attributes.html
- */
-struct __attribute((packed)) rdma_buffer_attr {
-    uint64_t address;
-    uint32_t length;
-    union stag {
-        /* if we send, we call it local stags */
-        uint32_t local_stag;
-        /* if we receive, we call it remote stag */
-        uint32_t remote_stag;
-    }stag;
-};
-
 
 struct exchange_buffer {
     struct msg* message;
     struct ibv_mr* buffer;
 };
-
 
 struct msg {
     enum {
@@ -84,27 +72,6 @@ struct msg {
 int get_addr(char *dst, struct sockaddr *addr);
 
 void show_exchange_buffer(struct msg *attr);
-
-/*
- * Processes an RDMA connection management (CM) event.
- * @echannel: CM event channel where the event is expected.
- * @expected_event: Expected event type
- * @cm_event: where the event will be stored
- */
-int on_event(struct rdma_event_channel *echannel,
-                          enum rdma_cm_event_type expected_event,
-                          struct rdma_cm_event **cm_event);
-
-/* Allocates an RDMA buffer of size 'length' with permission permission. This
- * function will also register the memory and returns a memory region (MR)
- * identifier or NULL on error.
- * @pd: Protection domain where the buffer should be allocated
- * @length: Length of the buffer
- * @permission: OR of IBV_ACCESS_* permissions as defined for the enum ibv_access_flags
- */
-struct ibv_mr* rdma_buffer_alloc(struct ibv_pd *pd,
-                                 uint32_t length,
-                                 enum ibv_access_flags permission);
 
 /* Frees a previously allocated RDMA buffer. The buffer must be allocated by
  * calling rdma_buffer_alloc();
@@ -137,8 +104,5 @@ void rdma_buffer_deregister(struct ibv_mr *mr);
 int process_work_completion_events(struct ibv_comp_channel *comp_channel,
                                    struct ibv_wc *wc,
                                    int max_wc);
-
-/* prints some details from the cm id */
-void show_rdma_cmid(struct rdma_cm_id *id);
 
 #endif //CSCI5572_AOS_UTILS_H

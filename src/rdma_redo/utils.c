@@ -64,7 +64,7 @@ void show_exchange_buffer(struct msg *attr) {
         printf("message: offset: %lu \n", attr->data.offset);
     }
     if (attr->type == ADDRESS){
-        printf("message data %p", attr->data.mr.addr);
+        printf("message: data.mr.address: %p \n", attr->data.mr.addr);
     }
     printf("---------------------------------------------------------\n");
 }
@@ -179,11 +179,12 @@ int process_work_completion_events (struct ibv_comp_channel *comp_channel,
         }
         total_wc += ret;
     } while (total_wc < max_wc);
-    info("%d WC are completed \n", total_wc);
+
+    info("%d WC are completed \n", total_wc)
     /* Now we check validity and status of I/O work completions */
     for( i = 0 ; i < total_wc ; i++) {
         if (wc[i].status != IBV_WC_SUCCESS) {
-            error("Work completion (WC) has error status: %s at index %d",
+            error("Work completion (WC) has error status: %s at index %d \n",
                        ibv_wc_status_str(wc[i].status), i);
             /* return negative value */
             return -(wc[i].status);

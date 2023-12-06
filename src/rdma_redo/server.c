@@ -4,16 +4,12 @@ static struct rdma_cm_id *cm_server_id = NULL;
 static struct rdma_event_channel *cm_event_channel = NULL;
 static struct ibv_qp_init_attr qp_init_attr; // client queue pair attributes
 
-/* RDMA memory resources */
-static struct ibv_mr *client_metadata_mr = NULL, *server_buffer_mr = NULL, *server_metadata_mr = NULL;
-
 static struct ibv_recv_wr client_recv_wr, *bad_client_recv_wr = NULL;
 static struct ibv_send_wr server_send_wr, *bad_server_send_wr = NULL;
 static struct ibv_sge client_recv_sge, server_send_sge;
 
-
 static struct exchange_buffer server_buff, client_buff;
-
+static struct per_client_resources *client_res = NULL;
 
 // client resources struct
 struct per_client_resources {
@@ -22,7 +18,6 @@ struct per_client_resources {
     struct ibv_comp_channel *completion_channel;
     struct ibv_qp *qp;
     struct rdma_cm_id *client_id;
-    unsigned long *table_start_addr;
 };
 
 // connection struct
@@ -31,8 +26,6 @@ struct per_connection_struct {
     struct ibv_mr *memory_region_mr;
     unsigned long *mapping_table_start;
 };
-
-static struct per_client_resources *client_res = NULL;
 
 static void setup_client_resources(struct rdma_cm_id *cm_client_id)
 {
@@ -44,19 +37,19 @@ static void setup_client_resources(struct rdma_cm_id *cm_client_id)
     client_res->client_id = cm_client_id;
 
     HANDLE(client_res->pd = ibv_alloc_pd(cm_client_id->verbs));
-    info("Protection domain (PD) allocated: %p \n", client_res->pd);
+    debug("Protection domain (PD) allocated: %p \n", client_res->pd)
 
     HANDLE(client_res->completion_channel = ibv_create_comp_channel(cm_client_id->verbs));
-    info("I/O completion event channel created: %p \n",
-         client_res->completion_channel);
+    debug("I/O completion event channel created: %p \n",
+         client_res->completion_channel)
 
     HANDLE(client_res->cq = ibv_create_cq(cm_client_id->verbs,
                        CQ_CAPACITY,
                        NULL,
                        client_res->completion_channel,
                        0));
-    info("Completion queue (CQ) created: %p with %d elements \n",
-         client_res->cq, client_res->cq->cqe);
+    debug("Completion queue (CQ) created: %p with %d elements \n",
+         client_res->cq, client_res->cq->cqe)
 
     /* Ask for the event for all activities in the completion queue*/
     HANDLE_NZ(ibv_req_notify_cq(client_res->cq,
@@ -73,47 +66,32 @@ static void setup_client_resources(struct rdma_cm_id *cm_client_id)
                          client_res->pd,
                          &qp_init_attr ));
     client_res->qp = cm_client_id->qp;
-
-    info("Client QP created: %p \n", client_res->qp);
+    debug("Client QP created: %p \n", client_res->qp)
 }
 
 
-static int start_rdma_server(struct sockaddr_in *server_socket_addr) {
-    // create an event channel
+static void start_rdma_server(struct sockaddr_in *server_socket_addr) {
     HANDLE(cm_event_channel = rdma_create_event_channel());
-    // create server id
     HANDLE_NZ(rdma_create_id(cm_event_channel, &cm_server_id, NULL, RDMA_PS_TCP));
-    // bind server id to the given socket credentials
     HANDLE_NZ(rdma_bind_addr(cm_server_id, (struct sockaddr*) server_socket_addr));
-    int ret;
-    // listen
-    ret = rdma_listen(cm_server_id, 8);
-    if (ret) {
-        error("rdma_listen failed to listen on server address, errno: %d ",
-                   -errno);
-        return -errno;
-    }
+    HANDLE_NZ(rdma_listen(cm_server_id, 8));
 
-    printf("Server is listening successfully at: %s , port: %d \n",
+    info("Server is listening successfully at: %s , port: %d \n",
            inet_ntoa(server_socket_addr->sin_addr),
            ntohs(server_socket_addr->sin_port));
-    return ret;
 }
 
 static void accept_conn(struct rdma_cm_id *cm_client_id) {
     struct rdma_conn_param conn_param;
     memset(&conn_param, 0, sizeof(conn_param));
-    conn_param.initiator_depth = 3; /* this tell how many outstanding requests can we handle */
-    conn_param.responder_resources = 3; /* This tell how many outstanding requests we expect other side to handle */
+    conn_param.initiator_depth = 3;
+    conn_param.responder_resources = 3;
 
-    // Now accept connection from the client.
     HANDLE_NZ(rdma_accept(cm_client_id, &conn_param));
-    info("Wait for : RDMA_CM_EVENT_ESTABLISHED event \n");
+    debug("Wait for : RDMA_CM_EVENT_ESTABLISHED event \n")
 }
 
-// Receive request for client to send the offset
-static int post_recv_offset(struct per_connection_struct* conn) {
-
+static void post_recv_offset() {
     client_buff.message = malloc(sizeof(struct msg));
     HANDLE(client_buff.buffer = rdma_buffer_register(client_res->pd,
                                                        client_buff.message,
@@ -132,7 +110,7 @@ static int post_recv_offset(struct per_connection_struct* conn) {
                             &client_recv_wr,
                             &bad_client_recv_wr));
 
-    info("Receive buffer for client offset pre-posting is successful \n");
+    info("Receive buffer for client OFFSET pre-posting is successful \n");
 }
 
 static void build_memory_map(struct per_connection_struct *conn) {
@@ -143,10 +121,10 @@ static void build_memory_map(struct per_connection_struct *conn) {
                                                      conn->memory_region,
                                                      DATA_SIZE  + (8 * (DATA_SIZE / BLOCK_SIZE)),
                                                      (IBV_ACCESS_LOCAL_WRITE|
-                                                      IBV_ACCESS_REMOTE_READ));
+                                                      IBV_ACCESS_REMOTE_READ | IBV_ACCESS_REMOTE_WRITE));
 
     conn->mapping_table_start = (unsigned long * ) conn->memory_region;
-    info("Initiated memory map: %p\n", conn->mapping_table_start);
+    debug("Initiated memory map: %p\n", conn->mapping_table_start)
 }
 
 static void post_send_memory_map(struct per_connection_struct* conn) {
@@ -157,9 +135,8 @@ static void post_send_memory_map(struct per_connection_struct* conn) {
     memcpy(&remote_sockaddr /* where to save */,
            rdma_get_peer_addr(client_res->client_id) /* gives you remote sockaddr */,
            sizeof(struct sockaddr_in) /* max size */);
-    printf("A new connection is accepted from %s \n",
+    info("A new connection is accepted from %s \n",
            inet_ntoa(remote_sockaddr.sin_addr));
-
 
     if (client_buff.message->type == OFFSET) {
 
@@ -173,13 +150,10 @@ static void post_send_memory_map(struct per_connection_struct* conn) {
                                                           server_buff.message,
                                                            sizeof(struct msg),
                                                            (IBV_ACCESS_LOCAL_WRITE|
-                                                            IBV_ACCESS_REMOTE_READ));
+                                                            IBV_ACCESS_REMOTE_READ |
+                                                            IBV_ACCESS_REMOTE_WRITE));
 
-        if (server_buff.buffer) {
-            printf("%p %lu %u", server_buff.buffer->addr, server_buff.buffer->length, server_buff.buffer->lkey);
-        }
-
-        printf("\n Sending client the below messsage. \n");
+        info("Sending ADDRESS... \n");
         show_exchange_buffer(server_buff.message);
 
         server_send_sge.addr = (uint64_t) server_buff.message;
@@ -194,61 +168,65 @@ static void post_send_memory_map(struct per_connection_struct* conn) {
 
         // memory map should have been initiated already. send that memory_map address
         HANDLE_NZ(ibv_post_send(client_res->qp, &server_send_wr, &bad_server_send_wr));
-        info("info send successfully");
+        info( "Send request with memory map ADDRESS is successful \n");
     }
 }
 
-static int disconnect_and_cleanup(struct per_connection_struct* conn)
-{
-    struct rdma_cm_event *cm_event = NULL;
-    int ret = -1;
-    rdma_ack_cm_event(cm_event);
-
-    printf("A disconnect event is received from the client...\n");
-    /* We free all the resources */
-    /* Destroy QP */
-    rdma_destroy_qp(client_res->client_id);
-
-    /* Destroy CQ */
-    ret = ibv_destroy_cq(client_res->cq);
-    if (ret) {
-        error("Failed to destroy completion queue cleanly, %d \n", -errno);
-        // we continue anyways;
-    }
-    /* Destroy completion channel */
-    ret = ibv_destroy_comp_channel(client_res->completion_channel);
-    if (ret) {
-        error("Failed to destroy completion channel cleanly, %d \n", -errno);
-        // we continue anyways;
-    }
-    /* Destroy memory buffers */
-    rdma_buffer_free(server_buffer_mr);
-    rdma_buffer_deregister(server_metadata_mr);
-    rdma_buffer_deregister(client_metadata_mr);
-    /* Destroy rdma server id */
-    ret = rdma_destroy_id(cm_server_id);
-    if (ret) {
-        error("Failed to destroy server id cleanly, %d \n", -errno);
-        // we continue anyways;
-    }
-    rdma_destroy_event_channel(cm_event_channel);
-    free(conn);
-    free(client_res);
-
-    /* Destroy client cm id */
-    ret = rdma_destroy_id(client_res->client_id);
-    if (ret) {
-        error("Failed to destroy client id cleanly, %d \n", -errno);
-        // we continue anyways;
-    }
-    printf("Server shut-down is complete \n");
-    return 0;
-}
+//static int disconnect_and_cleanup(struct per_connection_struct* conn)
+//{
+//    struct rdma_cm_event *cm_event = NULL;
+//    int ret = -1;
+//    rdma_ack_cm_event(cm_event);
+//
+//    printf("A disconnect event is received from the client...\n");
+//    /* We free all the resources */
+//    /* Destroy QP */
+//    rdma_destroy_qp(client_res->client_id);
+//
+//    /* Destroy CQ */
+//    ret = ibv_destroy_cq(client_res->cq);
+//    if (ret) {
+//        error("Failed to destroy completion queue cleanly, %d \n", -errno);
+//        // we continue anyways;
+//    }
+//    /* Destroy completion channel */
+//    ret = ibv_destroy_comp_channel(client_res->completion_channel);
+//    if (ret) {
+//        error("Failed to destroy completion channel cleanly, %d \n", -errno);
+//        // we continue anyways;
+//    }
+//    /* Destroy rdma server id */
+//    ret = rdma_destroy_id(cm_server_id);
+//    if (ret) {
+//        error("Failed to destroy server id cleanly, %d \n", -errno);
+//        // we continue anyways;
+//    }
+//    rdma_destroy_event_channel(cm_event_channel);
+//    free(conn);
+//    free(client_res);
+//
+//    /* Destroy client cm id */
+//    ret = rdma_destroy_id(client_res->client_id);
+//    if (ret) {
+//        error("Failed to destroy client id cleanly, %d \n", -errno);
+//        // we continue anyways;
+//    }
+//    printf("Server shut-down is complete \n");
+//    return 0;
+//}
 
 static void poll_for_completion_events(int num_wc) {
     struct ibv_wc wc;
-    HANDLE(process_work_completion_events(client_res->completion_channel, &wc, num_wc));
-    show_exchange_buffer(client_buff.message);
+    int total_wc = process_work_completion_events(client_res->completion_channel, &wc, num_wc);
+
+    for (int i = 0 ; i < total_wc; i++) {
+        //info("%d", wc[i].opcode);
+        if( (&(wc) + i)->opcode & IBV_WC_RECV ) {
+            if ( client_buff.message->type == OFFSET ) {
+                show_exchange_buffer(client_buff.message);
+            }
+        }
+    }
 }
 
 static int wait_for_event() {
@@ -268,13 +246,20 @@ static int wait_for_event() {
                 rdma_ack_cm_event(dummy_event); //Ack the event
                 setup_client_resources(cm_event.id); // send a recv req for client_metadata
                 build_memory_map(connection);
-                post_recv_offset(connection);
+                post_recv_offset();
                 accept_conn(cm_event.id);
                 break;
             case RDMA_CM_EVENT_ESTABLISHED:
                 rdma_ack_cm_event(dummy_event);
                 poll_for_completion_events(1);
                 post_send_memory_map(connection);
+                poll_for_completion_events(1);
+                while(1) {
+                    sleep(5);
+                    for (int i = 0; i < (DATA_SIZE / BLOCK_SIZE); i++) {
+                        info("%s \n", connection->memory_region + (i * BLOCK_SIZE) + (8 * (DATA_SIZE / BLOCK_SIZE)));
+                    }
+                }
                 break;
             case RDMA_CM_EVENT_DISCONNECTED:
 //                disconnect_and_cleanup(connection);
@@ -316,12 +301,7 @@ int main(int argc, char **argv) {
     if (!server_socket_addr.sin_port) {
         server_socket_addr.sin_port = htons(DEFAULT_RDMA_PORT);
     }
-    ret = start_rdma_server(&server_socket_addr);
-    if (ret) {
-        error("RDMA server failed to start cleanly, ret = %d \n", ret);
-        return ret;
-    }
-
+    start_rdma_server(&server_socket_addr);
     wait_for_event();
     return 0;
 }
