@@ -1,6 +1,15 @@
 #include "utils.h"
 
 
+void print_memory_map(const char* memory_region) {
+    info("-------------------\n")
+    info("Memory Map\n")
+    info("-------------------\n")
+    for(int i = 0; i < (DATA_SIZE / BLOCK_SIZE); i++) {
+        info("%d:%s \n", i, memory_region + (i * BLOCK_SIZE) + (8 * (DATA_SIZE / BLOCK_SIZE)));
+    }
+    info("-------------------\n")
+}
 
 
 int on_event(struct rdma_event_channel *event_channel,

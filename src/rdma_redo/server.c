@@ -21,13 +21,13 @@ struct per_client_resources {
 };
 
 // connection struct
-struct per_connection_struct {
+struct per_memory_struct {
     char* memory_region;
     struct ibv_mr *memory_region_mr;
     unsigned long *mapping_table_start;
 };
 
-static void setup_client_resources(struct rdma_cm_id *cm_client_id)
+static void setup_client_resources(struct rdma_cm_id *cm_client_id, struct per_memory_struct* conn)
 {
     client_res = (struct per_client_resources*) malloc(sizeof(struct per_client_resources));
     if(!cm_client_id){
@@ -41,19 +41,19 @@ static void setup_client_resources(struct rdma_cm_id *cm_client_id)
 
     HANDLE(client_res->completion_channel = ibv_create_comp_channel(cm_client_id->verbs));
     debug("I/O completion event channel created: %p \n",
-         client_res->completion_channel)
+          client_res->completion_channel)
 
     HANDLE(client_res->cq = ibv_create_cq(cm_client_id->verbs,
-                       CQ_CAPACITY,
-                       NULL,
-                       client_res->completion_channel,
-                       0));
+                                          CQ_CAPACITY,
+                                          NULL,
+                                          client_res->completion_channel,
+                                          0));
     debug("Completion queue (CQ) created: %p with %d elements \n",
-         client_res->cq, client_res->cq->cqe)
+          client_res->cq, client_res->cq->cqe)
 
     /* Ask for the event for all activities in the completion queue*/
     HANDLE_NZ(ibv_req_notify_cq(client_res->cq,
-                            0));
+                                0));
     bzero(&qp_init_attr, sizeof qp_init_attr);
     qp_init_attr.cap.max_recv_sge = MAX_SGE; /* Maximum SGE per receive posting */
     qp_init_attr.cap.max_recv_wr = MAX_WR; /* Maximum receive posting capacity */
@@ -63,9 +63,16 @@ static void setup_client_resources(struct rdma_cm_id *cm_client_id)
     qp_init_attr.recv_cq = client_res->cq;
     qp_init_attr.send_cq = client_res->cq;
     HANDLE_NZ(rdma_create_qp(client_res->client_id,
-                         client_res->pd,
-                         &qp_init_attr ));
+                             client_res->pd,
+                             &qp_init_attr ));
     client_res->qp = cm_client_id->qp;
+
+    conn->memory_region_mr = rdma_buffer_register(client_res->pd,
+                                                  conn->memory_region,
+                                                  DATA_SIZE  + (8 * (DATA_SIZE / BLOCK_SIZE)),
+                                                  (IBV_ACCESS_LOCAL_WRITE|
+                                                   IBV_ACCESS_REMOTE_READ | IBV_ACCESS_REMOTE_WRITE));
+
     debug("Client QP created: %p \n", client_res->qp)
 }
 
@@ -77,8 +84,8 @@ static void start_rdma_server(struct sockaddr_in *server_socket_addr) {
     HANDLE_NZ(rdma_listen(cm_server_id, 8));
 
     info("Server is listening successfully at: %s , port: %d \n",
-           inet_ntoa(server_socket_addr->sin_addr),
-           ntohs(server_socket_addr->sin_port));
+         inet_ntoa(server_socket_addr->sin_addr),
+         ntohs(server_socket_addr->sin_port));
 }
 
 static void accept_conn(struct rdma_cm_id *cm_client_id) {
@@ -94,9 +101,9 @@ static void accept_conn(struct rdma_cm_id *cm_client_id) {
 static void post_recv_offset() {
     client_buff.message = malloc(sizeof(struct msg));
     HANDLE(client_buff.buffer = rdma_buffer_register(client_res->pd,
-                                                       client_buff.message,
-                                                       sizeof(struct msg),
-                                                       (IBV_ACCESS_LOCAL_WRITE)));
+                                                     client_buff.message,
+                                                     sizeof(struct msg),
+                                                     (IBV_ACCESS_LOCAL_WRITE)));
 
     client_recv_sge.addr = (uint64_t)client_buff.buffer->addr;
     client_recv_sge.length = client_buff.buffer->length;
@@ -113,21 +120,31 @@ static void post_recv_offset() {
     info("Receive buffer for client OFFSET pre-posting is successful \n");
 }
 
-static void build_memory_map(struct per_connection_struct *conn) {
+static void build_memory_map(struct per_memory_struct *conn) {
     conn->memory_region = malloc( DATA_SIZE  + (8 * (DATA_SIZE / BLOCK_SIZE)));
-    memset(conn->memory_region, 11, DATA_SIZE  + (8 * (DATA_SIZE / BLOCK_SIZE)));
 
-    conn->memory_region_mr = rdma_buffer_register(client_res->pd,
-                                                     conn->memory_region,
-                                                     DATA_SIZE  + (8 * (DATA_SIZE / BLOCK_SIZE)),
-                                                     (IBV_ACCESS_LOCAL_WRITE|
-                                                      IBV_ACCESS_REMOTE_READ | IBV_ACCESS_REMOTE_WRITE));
+    info(" Memory Map initialized: \n");
+    redisContext *context = redisConnect("127.0.0.1", 6379);
+    redisReply* reply;
+    for ( int i = 0 ; i < (DATA_SIZE / BLOCK_SIZE); i++) {
+        char offset_str[2];
+        sprintf(offset_str, "%d", i);
+        reply = redisCommand(context, "GET %s", offset_str);
+        if (reply == NULL || reply->type != REDIS_REPLY_STRING) {
+            strcpy(conn->memory_region + (i * BLOCK_SIZE) + (8 * (DATA_SIZE/ BLOCK_SIZE)), "(nil)");
+            freeReplyObject(reply);
+            continue;
+        }
+        strcpy(conn->memory_region + (i * BLOCK_SIZE) + (8 * (DATA_SIZE/ BLOCK_SIZE)), reply->str);
+        freeReplyObject(reply);
+    }
+    print_memory_map(conn->memory_region);
 
     conn->mapping_table_start = (unsigned long * ) conn->memory_region;
     debug("Initiated memory map: %p\n", conn->mapping_table_start)
 }
 
-static void post_send_memory_map(struct per_connection_struct* conn) {
+static void post_send_memory_map(struct per_memory_struct* conn) {
     struct sockaddr_in remote_sockaddr;
     struct ibv_wc wc;
 
@@ -136,7 +153,7 @@ static void post_send_memory_map(struct per_connection_struct* conn) {
            rdma_get_peer_addr(client_res->client_id) /* gives you remote sockaddr */,
            sizeof(struct sockaddr_in) /* max size */);
     info("A new connection is accepted from %s \n",
-           inet_ntoa(remote_sockaddr.sin_addr));
+         inet_ntoa(remote_sockaddr.sin_addr));
 
     if (client_buff.message->type == OFFSET) {
 
@@ -147,11 +164,11 @@ static void post_send_memory_map(struct per_connection_struct* conn) {
         server_buff.message->data.mr.addr = (void *)(conn->memory_region);
 
         server_buff.buffer = rdma_buffer_register(client_res->pd,
-                                                          server_buff.message,
-                                                           sizeof(struct msg),
-                                                           (IBV_ACCESS_LOCAL_WRITE|
-                                                            IBV_ACCESS_REMOTE_READ |
-                                                            IBV_ACCESS_REMOTE_WRITE));
+                                                  server_buff.message,
+                                                  sizeof(struct msg),
+                                                  (IBV_ACCESS_LOCAL_WRITE|
+                                                   IBV_ACCESS_REMOTE_READ |
+                                                   IBV_ACCESS_REMOTE_WRITE));
 
         info("Sending ADDRESS... \n");
         show_exchange_buffer(server_buff.message);
@@ -220,7 +237,6 @@ static void poll_for_completion_events(int num_wc) {
     int total_wc = process_work_completion_events(client_res->completion_channel, &wc, num_wc);
 
     for (int i = 0 ; i < total_wc; i++) {
-        //info("%d", wc[i].opcode);
         if( (&(wc) + i)->opcode & IBV_WC_RECV ) {
             if ( client_buff.message->type == OFFSET ) {
                 show_exchange_buffer(client_buff.message);
@@ -229,11 +245,23 @@ static void poll_for_completion_events(int num_wc) {
     }
 }
 
+void* mem_map_print(void *args) {
+    struct per_memory_struct* conn = args;
+    while(1) {
+        sleep(4);
+        print_memory_map(conn->memory_region);
+    }
+}
+
 static int wait_for_event() {
     int ret;
 
     struct rdma_cm_event *dummy_event = NULL;
-    struct per_connection_struct* connection = NULL;
+    struct per_memory_struct* connection = NULL;
+    pthread_t thread1;
+    connection = (struct per_memory_struct*) malloc (sizeof(struct per_memory_struct*));
+    build_memory_map(connection);
+
     // when a client connects, it sends a connect request
     while(rdma_get_cm_event(cm_event_channel, &dummy_event) == 0){
         struct rdma_cm_event cm_event;
@@ -242,10 +270,9 @@ static int wait_for_event() {
         info("%s event received \n", rdma_event_str(cm_event.event));
         switch(cm_event.event) {
             case RDMA_CM_EVENT_CONNECT_REQUEST:
-                connection = (struct per_connection_struct*) malloc (sizeof(struct per_connection_struct*));
                 rdma_ack_cm_event(dummy_event); //Ack the event
-                setup_client_resources(cm_event.id); // send a recv req for client_metadata
-                build_memory_map(connection);
+                info("Client ID: %p\n", &cm_event.id);
+                setup_client_resources(cm_event.id, connection); // send a recv req for client_metadata
                 post_recv_offset();
                 accept_conn(cm_event.id);
                 break;
@@ -254,13 +281,7 @@ static int wait_for_event() {
                 poll_for_completion_events(1);
                 post_send_memory_map(connection);
                 poll_for_completion_events(1);
-                while(1) {
-                    sleep(5);
-                    for (int i = 0; i < (DATA_SIZE / BLOCK_SIZE); i++) {
-                        info("%s \n", connection->memory_region + (i * BLOCK_SIZE) + (8 * (DATA_SIZE / BLOCK_SIZE)));
-                    }
-                }
-                break;
+                pthread_create(&thread1, NULL, mem_map_print, (void *) connection);
             case RDMA_CM_EVENT_DISCONNECTED:
 //                disconnect_and_cleanup(connection);
                 break;

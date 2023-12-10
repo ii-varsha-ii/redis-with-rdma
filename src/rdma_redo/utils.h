@@ -11,6 +11,9 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <netdb.h>
+#include <hiredis/hiredis.h>
+#include <hiredis/adapters/poll.h>
+#include <hiredis/async.h>
 
 #include <rdma/rdma_cma.h>
 #include <infiniband/verbs.h>
@@ -78,7 +81,7 @@ void show_exchange_buffer(struct msg *attr);
  * @mr: RDMA memory region to free
  */
 void rdma_buffer_free(struct ibv_mr *mr);
-
+void print_memory_map(const char* memory_region);
 /* This function registers a previously allocated memory. Returns a memory region
  * (MR) identifier or NULL on error.
  * @pd: protection domain where to register memory
