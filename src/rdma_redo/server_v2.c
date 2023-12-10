@@ -9,7 +9,7 @@ static struct ibv_send_wr server_send_wr, *bad_server_send_wr = NULL;
 static struct ibv_sge client_recv_sge, server_send_sge;
 
 static struct exchange_buffer server_buff, client_buff;
-static struct per_client_resources *client_res[10] = NULL;
+static struct per_client_resources *client_res = NULL;
 
 // client resources struct
 struct per_client_resources {
@@ -30,30 +30,30 @@ struct per_memory_struct {
 
 static void setup_client_resources(struct rdma_cm_id *cm_client_id, struct per_memory_struct* conn)
 {
-    client_res[i] = (struct per_client_resources*) malloc(sizeof(struct per_client_resources));
+    client_res = (struct per_client_resources*) malloc(sizeof(struct per_client_resources));
     if(!cm_client_id){
         error("Client id is still NULL \n");
         return;
     }
-    client_res[i]->client_id = cm_client_id;
+    client_res->client_id = cm_client_id;
 
-    HANDLE(client_res[i]->pd = ibv_alloc_pd(cm_client_id->verbs));
-    debug("Protection domain (PD) allocated: %p \n", client_res[i]->pd)
+    HANDLE(client_res->pd = ibv_alloc_pd(cm_client_id->verbs));
+    debug("Protection domain (PD) allocated: %p \n", client_res->pd)
 
-    HANDLE(client_res[i]->completion_channel = ibv_create_comp_channel(cm_client_id->verbs));
+    HANDLE(client_res->completion_channel = ibv_create_comp_channel(cm_client_id->verbs));
     debug("I/O completion event channel created: %p \n",
-          client_res[i]->completion_channel)
+          client_res->completion_channel)
 
-    HANDLE(client_res[i]->cq = ibv_create_cq(cm_client_id->verbs,
+    HANDLE(client_res->cq = ibv_create_cq(cm_client_id->verbs,
                                           CQ_CAPACITY,
                                           NULL,
                                           client_res->completion_channel,
                                           0));
     debug("Completion queue (CQ) created: %p with %d elements \n",
-          client_res[i]->cq, client_res[i]->cq->cqe)
+          client_res->cq, client_res->cq->cqe)
 
     /* Ask for the event for all activities in the completion queue*/
-    HANDLE_NZ(ibv_req_notify_cq(client_res[i]->cq,
+    HANDLE_NZ(ibv_req_notify_cq(client_res->cq,
                                 0));
     bzero(&qp_init_attr, sizeof qp_init_attr);
     qp_init_attr.cap.max_recv_sge = MAX_SGE; /* Maximum SGE per receive posting */
@@ -61,20 +61,14 @@ static void setup_client_resources(struct rdma_cm_id *cm_client_id, struct per_m
     qp_init_attr.cap.max_send_sge = MAX_SGE; /* Maximum SGE per send posting */
     qp_init_attr.cap.max_send_wr = MAX_WR; /* Maximum send posting capacity */
     qp_init_attr.qp_type = IBV_QPT_RC; /* QP type, RC = Reliable connection */
-    qp_init_attr.recv_cq = client_res[i]->cq;
-    qp_init_attr.send_cq = client_res[i]->cq;
-    HANDLE_NZ(rdma_create_qp(client_res[i]->client_id,
-                             client_res[i]->pd,
+    qp_init_attr.recv_cq = client_res->cq;
+    qp_init_attr.send_cq = client_res->cq;
+    HANDLE_NZ(rdma_create_qp(client_res->client_id,
+                             client_res->pd,
                              &qp_init_attr ));
-    client_res[i]->qp = cm_client_id->qp;
+    client_res->qp = cm_client_id->qp;
 
-    conn->memory_region_mr = rdma_buffer_register(client_res[i]->pd,
-                                                  conn->memory_region,
-                                                  DATA_SIZE  + (8 * (DATA_SIZE / BLOCK_SIZE)),
-                                                  (IBV_ACCESS_LOCAL_WRITE|
-                                                   IBV_ACCESS_REMOTE_READ | IBV_ACCESS_REMOTE_WRITE));
-
-    debug("Client QP created: %p \n", client_res[i]->qp)
+    debug("Client QP created: %p \n", client_res->qp)
 }
 
 
@@ -101,7 +95,7 @@ static void accept_conn(struct rdma_cm_id *cm_client_id) {
 
 static void post_recv_offset() {
     client_buff.message = malloc(sizeof(struct msg));
-    HANDLE(client_buff.buffer = rdma_buffer_register(client_res[i]->pd,
+    HANDLE(client_buff.buffer = rdma_buffer_register(client_res->pd,
                                                      client_buff.message,
                                                      sizeof(struct msg),
                                                      (IBV_ACCESS_LOCAL_WRITE)));
@@ -114,7 +108,7 @@ static void post_recv_offset() {
     client_recv_wr.sg_list = &client_recv_sge;
     client_recv_wr.num_sge = 1; // only one SGE
 
-    HANDLE_NZ(ibv_post_recv(client_res[i]->qp,
+    HANDLE_NZ(ibv_post_recv(client_res->qp,
                             &client_recv_wr,
                             &bad_client_recv_wr));
 
@@ -142,6 +136,11 @@ static void build_memory_map(struct per_memory_struct *conn) {
 
     print_memory_map(conn->memory_region);
 
+    conn->memory_region_mr = rdma_buffer_register(client_res->pd,
+                                                  conn->memory_region,
+                                                  DATA_SIZE  + (8 * (DATA_SIZE / BLOCK_SIZE)),
+                                                  (IBV_ACCESS_LOCAL_WRITE|
+                                                   IBV_ACCESS_REMOTE_READ | IBV_ACCESS_REMOTE_WRITE));
     conn->mapping_table_start = (unsigned long * ) conn->memory_region;
     debug("Initiated memory map: %p\n", conn->mapping_table_start)
 }
@@ -247,21 +246,71 @@ static void poll_for_completion_events(int num_wc) {
     }
 }
 
-void* mem_map_print(void *args) {
+void* write_to_redis(void *args) {
     struct per_memory_struct* conn = args;
+    char * previousValue = NULL;
+    redisContext *context = redisConnect("127.0.0.1", 6379);
+    if (!context) {
+        fprintf(stderr, "Error:  Can't connect to Redis\n");
+        pthread_exit((void*)0);
+    }
     while(1) {
-        sleep(4);
-        print_memory_map(conn->memory_region);
-
+        sleep(1);
         printf("Previous String: %s\n", previousValue);
         char* str = conn->memory_region + ( 8 * (DATA_SIZE / BLOCK_SIZE)) + (0 * BLOCK_SIZE);
-        printf("Current String: %s\n", previousValue);
+        printf("Current String: %s\n", str);
         if ( previousValue == NULL || strcmp(previousValue, str) != 0) {
             printf("New String: %s\n", str);
-            previousValue = str;
+            redisReply *reply;
+            reply = redisCommand(context, "SET %s %s", "0", str);
+            if (!reply || context->err) {
+                fprintf(stderr, "Error:  Can't send command to Redis\n");
+                pthread_exit((void*)0);
+            }
+            printf("Updating key: %s value: %s => %s \n", "0", str, reply->str);
+            previousValue = strdup(str);
         }
+        print_memory_map(conn->memory_region);
     }
 }
+
+void onValueChanged(struct per_memory_struct* conn, const char* newValue) {
+    info("Key value changed: %s\n", newValue);
+    strcpy(conn->memory_region + (BLOCK_SIZE) + (8 * (DATA_SIZE/BLOCK_SIZE)), newValue);
+}
+
+void* read_from_redis(void *args) {
+    struct per_memory_struct* conn = args;
+    redisContext *context = redisConnect("127.0.0.1", 6379);
+    if (!context) {
+        fprintf(stderr, "Error:  Can't connect to Redis\n");
+        pthread_exit((void*)0);
+    }
+
+    char* keyToPoll = "1";
+    redisReply* reply;
+    char* previousValue = NULL;
+
+    while (1) {
+        reply = redisCommand(context, "GET %s", keyToPoll);
+
+        if (reply == NULL || reply->type != REDIS_REPLY_STRING) {
+            fprintf(stderr, "Error getting key value or key not found\n");
+            freeReplyObject(reply);
+            continue;
+        }
+
+        if (previousValue == NULL || strcmp(previousValue, reply->str) != 0) {
+            onValueChanged(conn, reply->str);
+
+            free(previousValue);
+            previousValue = strdup(reply->str);
+        }
+
+        freeReplyObject(reply);
+    }
+}
+
 
 
 static int wait_for_event() {
@@ -290,7 +339,8 @@ static int wait_for_event() {
                 poll_for_completion_events(1);
                 post_send_memory_map(connection);
                 poll_for_completion_events(1);
-                pthread_create(&thread1, NULL, mem_map_print, (void *) connection);
+                pthread_create(&thread1, NULL, write_to_redis, (void *) connection);
+                pthread_create(&thread1, NULL, read_from_redis, (void *) connection);
             case RDMA_CM_EVENT_DISCONNECTED:
 //                disconnect_and_cleanup(connection);
                 break;

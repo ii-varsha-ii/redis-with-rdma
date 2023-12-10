@@ -480,12 +480,66 @@ void* read_from_redis(void* args) {
     }
 }
 
+static void read_from_memory_map_in_offset(struct per_connection_struct* conn, int offset) {
+    memcpy(&conn->server_mr, &server_buff.message->data.mr, sizeof(conn->server_mr));
+
+    client_send_sge.addr = (uintptr_t)(conn->local_memory_region + (8 * (DATA_SIZE / BLOCK_SIZE)) + (offset + BLOCK_SIZE));
+    client_send_sge.length = (uint32_t) BLOCK_SIZE;
+    client_send_sge.lkey = conn->local_memory_region_mr->lkey;
+
+    bzero(&client_send_wr, sizeof(client_send_wr));
+    client_send_wr.sg_list = &client_send_sge;
+    client_send_wr.num_sge = 1;
+    client_send_wr.opcode = IBV_WR_RDMA_READ;
+    client_send_wr.send_flags = IBV_SEND_SIGNALED;
+    client_send_wr.wr.rdma.remote_addr = (uintptr_t) conn->server_mr.addr + (8 * (DATA_SIZE / BLOCK_SIZE)) + (offset + BLOCK_SIZE);
+    client_send_wr.wr.rdma.rkey = conn->server_mr.rkey;
+
+    HANDLE_NZ(ibv_post_send(client_res->qp,
+                            &client_send_wr,
+                            &bad_client_send_wr));
+
+    //info("RDMA read the remote memory map. \n");
+}
+
+void* write_to_redis(void *args) {
+    struct per_connection_struct* conn = args;
+    redisContext *context = redisConnect("127.0.0.1", 6379);
+    if (!context) {
+        fprintf(stderr, "Error:  Can't connect to Redis\n");
+        pthread_exit((void*)0);
+    }
+    char * previousValue = NULL;
+    int offset = 1;
+    while(1) {
+
+        read_from_memory_map_in_offset(conn, offset);
+        poll_for_completion_events(1);
+        printf("Previous String: %s\n", previousValue);
+        char* str = conn->local_memory_region + ( 8 * (DATA_SIZE / BLOCK_SIZE)) + (offset * BLOCK_SIZE);
+        printf("Current String: %s\n", str);
+        if ( previousValue == NULL || strcmp(previousValue, str) != 0) {
+            printf("New String: %s\n", str);
+            redisReply *reply;
+            reply = redisCommand(context, "SET %s %s", "1", str);
+            if (!reply || context->err) {
+                fprintf(stderr, "Error:  Can't send command to Redis\n");
+                pthread_exit((void*)0);
+            }
+            printf("Updating key: %s value: %s => %s \n", "0", str, reply->str);
+            previousValue = strdup(str);
+        }
+        sleep(1);
+    }
+}
+
+
 static int wait_for_event(struct sockaddr_in *s_addr) {
 
     struct rdma_cm_event *dummy_event = NULL;
     struct per_connection_struct* connection = NULL;
 
-    pthread_t thread1;
+    pthread_t thread1, thread2;
     while(rdma_get_cm_event(cm_event_channel, &dummy_event) == 0) {
         struct rdma_cm_event cm_event;
         memcpy(&cm_event, dummy_event, sizeof(*dummy_event));
@@ -510,6 +564,7 @@ static int wait_for_event(struct sockaddr_in *s_addr) {
                 read_memory_map(connection);
                 poll_for_completion_events(1);
                 pthread_create(&thread1, NULL, read_from_redis, (void*) connection);
+                pthread_create(&thread2, NULL, write_to_redis, (void *) connection);
                 break;
             default:
                 error("Event not found %s", (char *) cm_event.event);
