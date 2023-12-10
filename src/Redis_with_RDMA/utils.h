@@ -70,39 +70,31 @@ struct msg {
     }data;
 };
 
-/* resolves a given destination name to sin_addr */
+// client resources struct
+struct per_client_resources {
+    struct ibv_pd *pd;
+    struct ibv_cq *cq;
+    struct ibv_comp_channel *completion_channel;
+    struct ibv_qp *qp;
+    struct rdma_cm_id *client_id;
+
+};
+
+static struct exchange_buffer server_buff, client_buff;
+static struct per_client_resources *client_res = NULL;
+
+
 int get_addr(char *dst, struct sockaddr *addr);
-
 void show_exchange_buffer(struct msg *attr);
-
-/* Frees a previously allocated RDMA buffer. The buffer must be allocated by
- * calling rdma_buffer_alloc();
- * @mr: RDMA memory region to free
- */
 void rdma_buffer_free(struct ibv_mr *mr);
 void print_memory_map(const char* memory_region);
-/* This function registers a previously allocated memory. Returns a memory region
- * (MR) identifier or NULL on error.
- * @pd: protection domain where to register memory
- * @addr: Buffer address
- * @length: Length of the buffer
- * @permission: OR of IBV_ACCESS_* permissions as defined for the enum ibv_access_flags
- */
+
 struct ibv_mr *rdma_buffer_register(struct ibv_pd *pd,
                                     void *addr,
                                     uint32_t length,
                                     enum ibv_access_flags permission);
-/* Deregisters a previously register memory
- * @mr: Memory region to deregister
- */
 void rdma_buffer_deregister(struct ibv_mr *mr);
 
-/* Processes a work completion (WC) notification.
- * @comp_channel: Completion channel where the notifications are expected to arrive
- * @wc: Array where to hold the work completion elements
- * @max_wc: Maximum number of expected work completion (WC) elements. wc must be
- *          atleast this size.
- */
 int process_work_completion_events(struct ibv_comp_channel *comp_channel,
                                    struct ibv_wc *wc,
                                    int max_wc);
