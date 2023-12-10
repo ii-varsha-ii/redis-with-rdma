@@ -273,7 +273,9 @@ static void read_memory_map(struct per_connection_struct* conn) {
     client_send_wr.opcode = IBV_WR_RDMA_READ;
     client_send_wr.send_flags = IBV_SEND_SIGNALED;
     client_send_wr.wr.rdma.remote_addr = (uintptr_t) conn->server_mr.addr;
+    info("Posting address where %p\n", conn->server_mr.addr);
     client_send_wr.wr.rdma.rkey = conn->server_mr.rkey;
+    info("Posting rkey where %u\n", conn->server_mr.rkey);
 
     HANDLE_NZ(ibv_post_send(client_res->qp,
                             &client_send_wr,
