@@ -29,4 +29,3 @@ include_directories("${PROJECT_SOURCE_DIR}" "/home/atr/local/include/")
 
 add_executable(server ${PROJECT_SOURCE_DIR}/utils.c ${PROJECT_SOURCE_DIR}/server.c )
 add_executable(client ${PROJECT_SOURCE_DIR}/utils.c ${PROJECT_SOURCE_DIR}/client.c )
-add_executable(redis_test ${PROJECT_SOURCE_DIR}/utils.c ${PROJECT_SOURCE_DIR}/redis_poll_test.c )

@@ -57,10 +57,10 @@ RM = /usr/bin/cmake -E rm -f
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /users/nvarsha/CSCI5572-AOS/src/rdma_redo
+CMAKE_SOURCE_DIR = /users/nvarsha/CSCI5572-AOS/src/Redis_with_RDMA
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /users/nvarsha/CSCI5572-AOS/src/rdma_redo
+CMAKE_BINARY_DIR = /users/nvarsha/CSCI5572-AOS/src/Redis_with_RDMA
 
 #=============================================================================
 # Targets provided globally by CMake.
@@ -87,9 +87,9 @@ rebuild_cache/fast: rebuild_cache
 
 # The main all target
 all: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /users/nvarsha/CSCI5572-AOS/src/rdma_redo/CMakeFiles /users/nvarsha/CSCI5572-AOS/src/rdma_redo//CMakeFiles/progress.marks
+	$(CMAKE_COMMAND) -E cmake_progress_start /users/nvarsha/CSCI5572-AOS/src/Redis_with_RDMA/CMakeFiles /users/nvarsha/CSCI5572-AOS/src/Redis_with_RDMA//CMakeFiles/progress.marks
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 all
-	$(CMAKE_COMMAND) -E cmake_progress_start /users/nvarsha/CSCI5572-AOS/src/rdma_redo/CMakeFiles 0
+	$(CMAKE_COMMAND) -E cmake_progress_start /users/nvarsha/CSCI5572-AOS/src/Redis_with_RDMA/CMakeFiles 0
 .PHONY : all
 
 # The main clean target
@@ -142,19 +142,6 @@ client/fast:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/build
 .PHONY : client/fast
 
-#=============================================================================
-# Target rules for targets named redis_test
-
-# Build rule for target.
-redis_test: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 redis_test
-.PHONY : redis_test
-
-# fast build rule for target.
-redis_test/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/redis_test.dir/build.make CMakeFiles/redis_test.dir/build
-.PHONY : redis_test/fast
-
 client.o: client.c.o
 .PHONY : client.o
 
@@ -178,30 +165,6 @@ client.s: client.c.s
 client.c.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/client.c.s
 .PHONY : client.c.s
-
-redis_poll_test.o: redis_poll_test.c.o
-.PHONY : redis_poll_test.o
-
-# target to build an object file
-redis_poll_test.c.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/redis_test.dir/build.make CMakeFiles/redis_test.dir/redis_poll_test.c.o
-.PHONY : redis_poll_test.c.o
-
-redis_poll_test.i: redis_poll_test.c.i
-.PHONY : redis_poll_test.i
-
-# target to preprocess a source file
-redis_poll_test.c.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/redis_test.dir/build.make CMakeFiles/redis_test.dir/redis_poll_test.c.i
-.PHONY : redis_poll_test.c.i
-
-redis_poll_test.s: redis_poll_test.c.s
-.PHONY : redis_poll_test.s
-
-# target to generate assembly for a file
-redis_poll_test.c.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/redis_test.dir/build.make CMakeFiles/redis_test.dir/redis_poll_test.c.s
-.PHONY : redis_poll_test.c.s
 
 server.o: server.c.o
 .PHONY : server.o
@@ -234,7 +197,6 @@ utils.o: utils.c.o
 utils.c.o:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/utils.c.o
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/utils.c.o
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/redis_test.dir/build.make CMakeFiles/redis_test.dir/utils.c.o
 .PHONY : utils.c.o
 
 utils.i: utils.c.i
@@ -244,7 +206,6 @@ utils.i: utils.c.i
 utils.c.i:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/utils.c.i
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/utils.c.i
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/redis_test.dir/build.make CMakeFiles/redis_test.dir/utils.c.i
 .PHONY : utils.c.i
 
 utils.s: utils.c.s
@@ -254,7 +215,6 @@ utils.s: utils.c.s
 utils.c.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/utils.c.s
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/utils.c.s
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/redis_test.dir/build.make CMakeFiles/redis_test.dir/utils.c.s
 .PHONY : utils.c.s
 
 # Help Target
@@ -266,14 +226,10 @@ help:
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
 	@echo "... client"
-	@echo "... redis_test"
 	@echo "... server"
 	@echo "... client.o"
 	@echo "... client.i"
 	@echo "... client.s"
-	@echo "... redis_poll_test.o"
-	@echo "... redis_poll_test.i"
-	@echo "... redis_poll_test.s"
 	@echo "... server.o"
 	@echo "... server.i"
 	@echo "... server.s"

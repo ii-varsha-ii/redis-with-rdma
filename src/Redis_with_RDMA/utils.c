@@ -24,24 +24,6 @@ void show_exchange_buffer(struct msg *attr) {
     info("---------------------------------------------------------\n");
 }
 
-void show_exchange_buffer(struct ibv_mr* attr) {
-    if(!attr){
-        error("Passed attr is NULL\n");
-        return;
-    }
-    printf("Show exchange buffer: \n");
-    printf("---------------------------------------------------------\n");
-    struct msg *message = (struct msg*) attr->addr;
-    printf("message, type: %d\n",
-           message->type);
-    if(message->type == OFFSET) {
-        printf("message: offset: %lu \n ", message->data.offset);
-    } else {
-        printf("message: data: %p, addr_length: %zu \n ", message->data.mr->addr, message->data.mr->length);
-    }
-    printf("---------------------------------------------------------\n");
-}
-
 struct ibv_mr* rdma_buffer_alloc(struct ibv_pd *pd, uint32_t size,
                                  enum ibv_access_flags permission)
 {

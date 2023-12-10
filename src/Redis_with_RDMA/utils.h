@@ -80,10 +80,6 @@ struct per_client_resources {
 
 };
 
-static struct exchange_buffer server_buff, client_buff;
-static struct per_client_resources *client_res = NULL;
-
-
 int get_addr(char *dst, struct sockaddr *addr);
 void show_exchange_buffer(struct msg *attr);
 void rdma_buffer_free(struct ibv_mr *mr);
