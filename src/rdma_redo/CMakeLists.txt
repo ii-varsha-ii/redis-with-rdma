@@ -21,10 +21,13 @@ set(CMAKE_CXX_FLAGS "-O0  -ggdb")
 
 find_library(IBVERBS_LIBRARY ibverbs HINTS /home/atr/local/lib)
 find_library(RDMACM_LIBRARY rdmacm HINTS /home/atr/local/lib)
+find_library(HIREDIS_LIBRARY hiredis HINTS /home/atr/local/lib)
 
-link_libraries(pthread ${IBVERBS_LIBRARY} ${RDMACM_LIBRARY})
+link_libraries(pthread ${IBVERBS_LIBRARY} ${RDMACM_LIBRARY} ${HIREDIS_LIBRARY})
 
 include_directories("${PROJECT_SOURCE_DIR}" "/home/atr/local/include/")
 
 add_executable(server ${PROJECT_SOURCE_DIR}/utils.c ${PROJECT_SOURCE_DIR}/server.c )
-add_executable(client ${PROJECT_SOURCE_DIR}/utils.c ${PROJECT_SOURCE_DIR}/client.c )
+add_executable(client_read ${PROJECT_SOURCE_DIR}/utils.c ${PROJECT_SOURCE_DIR}/client_read.c )
+add_executable(client_write ${PROJECT_SOURCE_DIR}/utils.c ${PROJECT_SOURCE_DIR}/client_write.c )
+add_executable(redis_test ${PROJECT_SOURCE_DIR}/utils.c ${PROJECT_SOURCE_DIR}/redis_poll_test.c )
