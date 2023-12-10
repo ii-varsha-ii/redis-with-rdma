@@ -1,0 +1,5 @@
+/users/nvarsha/CSCI5572-AOS/src/rdma_redo/CMakeFiles/server.dir
+/users/nvarsha/CSCI5572-AOS/src/rdma_redo/CMakeFiles/client.dir
+/users/nvarsha/CSCI5572-AOS/src/rdma_redo/CMakeFiles/redis_test.dir
+/users/nvarsha/CSCI5572-AOS/src/rdma_redo/CMakeFiles/edit_cache.dir
+/users/nvarsha/CSCI5572-AOS/src/rdma_redo/CMakeFiles/rebuild_cache.dir

@@ -130,30 +130,17 @@ server/fast:
 .PHONY : server/fast
 
 #=============================================================================
-# Target rules for targets named client_read
+# Target rules for targets named client
 
 # Build rule for target.
-client_read: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 client_read
-.PHONY : client_read
+client: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 client
+.PHONY : client
 
 # fast build rule for target.
-client_read/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/client_read.dir/build.make CMakeFiles/client_read.dir/build
-.PHONY : client_read/fast
-
-#=============================================================================
-# Target rules for targets named client_write
-
-# Build rule for target.
-client_write: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 client_write
-.PHONY : client_write
-
-# fast build rule for target.
-client_write/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/client_write.dir/build.make CMakeFiles/client_write.dir/build
-.PHONY : client_write/fast
+client/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/build
+.PHONY : client/fast
 
 #=============================================================================
 # Target rules for targets named redis_test
@@ -168,53 +155,29 @@ redis_test/fast:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/redis_test.dir/build.make CMakeFiles/redis_test.dir/build
 .PHONY : redis_test/fast
 
-client_read.o: client_read.c.o
-.PHONY : client_read.o
+client.o: client.c.o
+.PHONY : client.o
 
 # target to build an object file
-client_read.c.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/client_read.dir/build.make CMakeFiles/client_read.dir/client_read.c.o
-.PHONY : client_read.c.o
+client.c.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/client.c.o
+.PHONY : client.c.o
 
-client_read.i: client_read.c.i
-.PHONY : client_read.i
-
-# target to preprocess a source file
-client_read.c.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/client_read.dir/build.make CMakeFiles/client_read.dir/client_read.c.i
-.PHONY : client_read.c.i
-
-client_read.s: client_read.c.s
-.PHONY : client_read.s
-
-# target to generate assembly for a file
-client_read.c.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/client_read.dir/build.make CMakeFiles/client_read.dir/client_read.c.s
-.PHONY : client_read.c.s
-
-client_write.o: client_write.c.o
-.PHONY : client_write.o
-
-# target to build an object file
-client_write.c.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/client_write.dir/build.make CMakeFiles/client_write.dir/client_write.c.o
-.PHONY : client_write.c.o
-
-client_write.i: client_write.c.i
-.PHONY : client_write.i
+client.i: client.c.i
+.PHONY : client.i
 
 # target to preprocess a source file
-client_write.c.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/client_write.dir/build.make CMakeFiles/client_write.dir/client_write.c.i
-.PHONY : client_write.c.i
+client.c.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/client.c.i
+.PHONY : client.c.i
 
-client_write.s: client_write.c.s
-.PHONY : client_write.s
+client.s: client.c.s
+.PHONY : client.s
 
 # target to generate assembly for a file
-client_write.c.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/client_write.dir/build.make CMakeFiles/client_write.dir/client_write.c.s
-.PHONY : client_write.c.s
+client.c.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/client.c.s
+.PHONY : client.c.s
 
 redis_poll_test.o: redis_poll_test.c.o
 .PHONY : redis_poll_test.o
@@ -270,8 +233,7 @@ utils.o: utils.c.o
 # target to build an object file
 utils.c.o:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/utils.c.o
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/client_read.dir/build.make CMakeFiles/client_read.dir/utils.c.o
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/client_write.dir/build.make CMakeFiles/client_write.dir/utils.c.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/utils.c.o
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/redis_test.dir/build.make CMakeFiles/redis_test.dir/utils.c.o
 .PHONY : utils.c.o
 
@@ -281,8 +243,7 @@ utils.i: utils.c.i
 # target to preprocess a source file
 utils.c.i:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/utils.c.i
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/client_read.dir/build.make CMakeFiles/client_read.dir/utils.c.i
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/client_write.dir/build.make CMakeFiles/client_write.dir/utils.c.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/utils.c.i
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/redis_test.dir/build.make CMakeFiles/redis_test.dir/utils.c.i
 .PHONY : utils.c.i
 
@@ -292,8 +253,7 @@ utils.s: utils.c.s
 # target to generate assembly for a file
 utils.c.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/utils.c.s
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/client_read.dir/build.make CMakeFiles/client_read.dir/utils.c.s
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/client_write.dir/build.make CMakeFiles/client_write.dir/utils.c.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/utils.c.s
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/redis_test.dir/build.make CMakeFiles/redis_test.dir/utils.c.s
 .PHONY : utils.c.s
 
@@ -305,16 +265,12 @@ help:
 	@echo "... depend"
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
-	@echo "... client_read"
-	@echo "... client_write"
+	@echo "... client"
 	@echo "... redis_test"
 	@echo "... server"
-	@echo "... client_read.o"
-	@echo "... client_read.i"
-	@echo "... client_read.s"
-	@echo "... client_write.o"
-	@echo "... client_write.i"
-	@echo "... client_write.s"
+	@echo "... client.o"
+	@echo "... client.i"
+	@echo "... client.s"
 	@echo "... redis_poll_test.o"
 	@echo "... redis_poll_test.i"
 	@echo "... redis_poll_test.s"

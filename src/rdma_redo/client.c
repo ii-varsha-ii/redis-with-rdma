@@ -157,38 +157,33 @@ static int post_send_to_server()
     return 0;
 }
 
-static int client_disconnect_and_clean()
+static int disconnect_and_cleanup()
 {
-    struct rdma_cm_event *cm_event = NULL;
     int ret = -1;
-    /* active disconnect from the client side */
     ret = rdma_disconnect(client_res->client_id);
     if (ret) {
         error("Failed to disconnect, errno: %d \n", -errno);
-        //continuing anyways
     }
 
     /* Destroy QP */
     rdma_destroy_qp(client_res->client_id);
+
     /* Destroy client cm id */
     ret = rdma_destroy_id(client_res->client_id);
     if (ret) {
         error("Failed to destroy client id cleanly, %d \n", -errno);
-        // we continue anyways;
     }
     /* Destroy CQ */
     ret = ibv_destroy_cq(client_res->cq);
     if (ret) {
         error("Failed to destroy completion queue cleanly, %d \n", -errno);
-        // we continue anyways;
     }
     /* Destroy completion channel */
     ret = ibv_destroy_comp_channel(client_res->completion_channel);
     if (ret) {
         error("Failed to destroy completion channel cleanly, %d \n", -errno);
-        // we continue anyways;
     }
-    /* Destroy memory buffers */
+
     rdma_buffer_deregister(server_buff.buffer);
     rdma_buffer_deregister(client_buff.buffer);
 
@@ -196,18 +191,11 @@ static int client_disconnect_and_clean()
     ret = ibv_dealloc_pd(client_res->pd);
     if (ret) {
         error("Failed to destroy client protection domain cleanly, %d \n", -errno);
-        // we continue anyways;
+
     }
     rdma_destroy_event_channel(cm_event_channel);
     printf("Client resource clean up is complete \n");
     return 0;
-}
-
-void usage() {
-    printf("Usage:\n");
-    printf("rdma_client: [-a <server_addr>] [-p <server_port>] -s string (required)\n");
-    printf("(default IP is 127.0.0.1 and port is %d)\n", DEFAULT_RDMA_PORT);
-    exit(1);
 }
 
 static void poll_for_completion_events(int num_wc) {
@@ -351,7 +339,7 @@ void* read_from_redis(void* args) {
         pthread_exit((void*)0);
     }
 
-    char offset[2] = "0";
+    char offset[2] = {'0', '\0'};
     redisReply* reply;
     char* previousValue = NULL;
 
@@ -370,7 +358,7 @@ void* read_from_redis(void* args) {
 
             write_to_memory_map_in_offset(conn, atoi(offset), reply->str);
             poll_for_completion_events(1);
-            
+
             previousValue = strdup(reply->str);
             info("MAP_UPDATE: key: %s value: %s\n", offset, reply->str);
             print_memory_map(conn->local_memory_region);
@@ -390,7 +378,7 @@ void* write_to_redis(void *args) {
     }
 
     char *previousValue = NULL;
-    char offset[2] = "1";
+    char offset[2] = {'1', '\0'};
     redisReply *reply;
 
     while (1) {
@@ -450,7 +438,8 @@ static int wait_for_event(struct sockaddr_in *s_addr) {
                 break;
             case RDMA_CM_EVENT_DISCONNECTED:
                 HANDLE_NZ(rdma_ack_cm_event(dummy_event));
-                client_disconnect_and_clean();
+                disconnect_and_cleanup();
+                break;
             default:
                 error("Event not found %s", (char *) cm_event.event);
                 break;
