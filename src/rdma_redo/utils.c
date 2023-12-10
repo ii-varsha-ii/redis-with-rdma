@@ -11,74 +11,19 @@ void print_memory_map(const char* memory_region) {
     info("-------------------\n")
 }
 
-
-int on_event(struct rdma_event_channel *event_channel,
-                          enum rdma_cm_event_type expected_event,
-                          struct rdma_cm_event **cm_event)
-{
-    int ret = 1;
-
-    // get the received event
-    ret = rdma_get_cm_event(event_channel, cm_event);
-    if (ret) {
-        error("Failed to retrieve a cm event, errno: %d \n",
-              -errno);
-        return -errno;
-    }
-
-    if( (*cm_event)->status != 0 ){
-        error("CM event has non zero status: %d\n", (*cm_event)->status);
-        ret = -((*cm_event)->status);
-
-        // ack the event
-        rdma_ack_cm_event(*cm_event);
-        return ret;
-    }
-
-    // if the event is not the expected event
-    if ((*cm_event)->event != expected_event) {
-        error("Unexpected event received: %s [ expecting: %s ]",
-              rdma_event_str((*cm_event)->event),
-              rdma_event_str(expected_event));
-        // ack the event
-        rdma_ack_cm_event(*cm_event);
-        return -1;
-    }
-    info("A new %s type event is received \n", rdma_event_str((*cm_event)->event));
-    return ret;
-}
-
-void show_rdma_cmid(struct rdma_cm_id *id)
-{
-    if(!id){
-        error("Passed ptr is NULL\n");
-        return;
-    }
-    printf("RDMA cm id at %p \n", id);
-    if(id->verbs && id->verbs->device)
-        printf("dev_ctx: %p (device name: %s) \n", id->verbs,
-               id->verbs->device->name);
-    if(id->channel)
-        printf("cm event channel %p\n", id->channel);
-    printf("QP: %p, port_space %x, port_num %u \n", id->qp,
-           id->ps,
-           id->port_num);
-}
-
 void show_exchange_buffer(struct msg *attr) {
-    printf("---------------------------------------------------------\n");
-    printf("message %p\n", attr);
-    printf("message, type: %d\n", attr->type);
+    info("---------------------------------------------------------\n");
+    info("message %p\n", attr);
+    info("message, type: %d\n", attr->type);
     if(attr->type == OFFSET) {
-        printf("message: offset: %lu \n", attr->data.offset);
+        info("message: offset: %lu \n", attr->data.offset);
     }
     if (attr->type == ADDRESS){
-        printf("message: data.mr.address: %p \n", attr->data.mr.addr);
+        info("message: data.mr.address: %p \n", attr->data.mr.addr);
     }
-    printf("---------------------------------------------------------\n");
+    info("---------------------------------------------------------\n");
 }
 
-// Allocate a memory region - calloc and register that memory region
 struct ibv_mr* rdma_buffer_alloc(struct ibv_pd *pd, uint32_t size,
                                  enum ibv_access_flags permission)
 {
@@ -100,7 +45,6 @@ struct ibv_mr* rdma_buffer_alloc(struct ibv_pd *pd, uint32_t size,
     return mr;
 }
 
-// Register a memory region - ibv_reg_mr
 struct ibv_mr *rdma_buffer_register(struct ibv_pd *pd,
                                     void *addr, uint32_t length,
                                     enum ibv_access_flags permission)
@@ -122,7 +66,6 @@ struct ibv_mr *rdma_buffer_register(struct ibv_pd *pd,
     return mr;
 }
 
-// Free memory and Deregister that memory region -
 void rdma_buffer_free(struct ibv_mr *mr)
 {
     if (!mr) {
@@ -135,7 +78,6 @@ void rdma_buffer_free(struct ibv_mr *mr)
     free(to_free);
 }
 
-// Deregister that memory region - ibv_dereg_mr
 void rdma_buffer_deregister(struct ibv_mr *mr)
 {
     if (!mr) {
@@ -189,7 +131,7 @@ int process_work_completion_events (struct ibv_comp_channel *comp_channel,
         total_wc += ret;
     } while (total_wc < max_wc);
 
-    info("%d WC are completed \n", total_wc)
+    debug("%d WC are completed \n", total_wc)
     /* Now we check validity and status of I/O work completions */
     for( i = 0 ; i < total_wc ; i++) {
         if (wc[i].status != IBV_WC_SUCCESS) {
