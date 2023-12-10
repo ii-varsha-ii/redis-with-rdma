@@ -32,5 +32,6 @@ add_executable(rdma_client src/Redis_example/rdma_common.c
         src/Redis_example/rdma_client.c
         rdma_new/utils.c
         rdma_new/utils.h
-        rdma_new/client.c)
+        rdma_new/client.c
+        src/rdma_redo/redis_poll_test.c)
 add_executable(rdma_new_server rdma_new/server.c)
