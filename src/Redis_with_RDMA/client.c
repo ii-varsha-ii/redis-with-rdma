@@ -367,7 +367,7 @@ void* write_to_redis(void *args) {
         pthread_exit((void *) 0);
     }
 
-    char *previousValue = NULL;
+    char *previousValue = "(nil)";
     char offset[2] = {'1', '\0'};
     redisReply *reply;
 
