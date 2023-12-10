@@ -10,8 +10,6 @@ static struct ibv_sge client_send_sge, server_recv_sge;
 
 static struct exchange_buffer server_buff, client_buff;
 
-/* Source and Destination buffers, where RDMA operations source and sink */
-static char *src = NULL, *dst = NULL;
 static struct per_client_resources *client_res = NULL;
 
 // client resources struct
@@ -164,55 +162,38 @@ static int client_disconnect_and_clean()
     struct rdma_cm_event *cm_event = NULL;
     int ret = -1;
     /* active disconnect from the client side */
-    ret = rdma_disconnect(cm_client_id);
+    ret = rdma_disconnect(client_res->client_id);
     if (ret) {
         error("Failed to disconnect, errno: %d \n", -errno);
         //continuing anyways
     }
-    ret = on_event(cm_event_channel,
-                                RDMA_CM_EVENT_DISCONNECTED,
-                                &cm_event);
-    if (ret) {
-        error("Failed to get RDMA_CM_EVENT_DISCONNECTED event, ret = %d\n",
-                   ret);
-        //continuing anyways
-    }
-    ret = rdma_ack_cm_event(cm_event);
-    if (ret) {
-        error("Failed to acknowledge cm event, errno: %d\n",
-                   -errno);
-        //continuing anyways
-    }
+
     /* Destroy QP */
-    rdma_destroy_qp(cm_client_id);
+    rdma_destroy_qp(client_res->client_id);
     /* Destroy client cm id */
-    ret = rdma_destroy_id(cm_client_id);
+    ret = rdma_destroy_id(client_res->client_id);
     if (ret) {
         error("Failed to destroy client id cleanly, %d \n", -errno);
         // we continue anyways;
     }
     /* Destroy CQ */
-    ret = ibv_destroy_cq(client_cq);
+    ret = ibv_destroy_cq(client_res->cq);
     if (ret) {
         error("Failed to destroy completion queue cleanly, %d \n", -errno);
         // we continue anyways;
     }
     /* Destroy completion channel */
-    ret = ibv_destroy_comp_channel(io_completion_channel);
+    ret = ibv_destroy_comp_channel(client_res->completion_channel);
     if (ret) {
         error("Failed to destroy completion channel cleanly, %d \n", -errno);
         // we continue anyways;
     }
     /* Destroy memory buffers */
-    rdma_buffer_deregister(server_metadata_mr);
-    rdma_buffer_deregister(client_metadata_mr);
-    rdma_buffer_deregister(client_src_mr);
-    rdma_buffer_deregister(client_dst_mr);
-    /* We free the buffers */
-    free(src);
-    free(dst);
+    rdma_buffer_deregister(server_buff.buffer);
+    rdma_buffer_deregister(client_buff.buffer);
+
     /* Destroy protection domain */
-    ret = ibv_dealloc_pd(pd);
+    ret = ibv_dealloc_pd(client_res->pd);
     if (ret) {
         error("Failed to destroy client protection domain cleanly, %d \n", -errno);
         // we continue anyways;
@@ -468,6 +449,9 @@ static int wait_for_event(struct sockaddr_in *s_addr) {
                 pthread_create(&thread1, NULL, read_from_redis, (void*) connection);
                 pthread_create(&thread2, NULL, write_to_redis, (void *) connection);
                 break;
+            case RDMA_CM_EVENT_DISCONNECTED:
+                HANDLE_NZ(rdma_ack_cm_event(dummy_event));
+                client_disconnect_and_clean();
             default:
                 error("Event not found %s", (char *) cm_event.event);
                 break;
@@ -485,24 +469,6 @@ int main(int argc, char **argv) {
 
     while ((option = getopt(argc, argv, "s:a:p:")) != -1) {
         switch (option) {
-            case 's':
-                printf("Passed string is : %s , with count %u \n",
-                       optarg,
-                       (unsigned int) strlen(optarg));
-                src = calloc(strlen(optarg) , 1);
-                if (!src) {
-                    error("Failed to allocate memory : -ENOMEM\n");
-                    return -ENOMEM;
-                }
-                /* Copy the passes arguments */
-                strncpy(src, optarg, strlen(optarg));
-                dst = calloc(strlen(optarg), 1);
-                if (!dst) {
-                    error("Failed to allocate destination memory, -ENOMEM\n");
-                    free(src);
-                    return -ENOMEM;
-                }
-                break;
             case 'a':
                 /* remember, this overwrites the port info */
                 ret = get_addr(optarg, (struct sockaddr*) &server_sockaddr);
