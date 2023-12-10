@@ -1,0 +1,1 @@
+/usr/bin/cc -O3 -DNDEBUG -rdynamic CMakeFiles/redis_test.dir/utils.c.o CMakeFiles/redis_test.dir/redis_poll_test.c.o -o redis_test  -Wl,-rpath,/usr/local/lib -lpthread -libverbs -lrdmacm /usr/local/lib/libhiredis.so 
