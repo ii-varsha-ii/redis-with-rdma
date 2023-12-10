@@ -8,19 +8,6 @@ static struct ibv_send_wr client_send_wr, *bad_client_send_wr = NULL;
 static struct ibv_recv_wr server_recv_wr, *bad_server_recv_wr = NULL;
 static struct ibv_sge client_send_sge, server_recv_sge;
 
-static struct exchange_buffer server_buff, client_buff;
-
-static struct per_client_resources *client_res = NULL;
-
-// client resources struct
-struct per_client_resources {
-    struct ibv_pd *pd;
-    struct ibv_cq *cq;
-    struct ibv_comp_channel *completion_channel;
-    struct ibv_qp *qp;
-    struct rdma_cm_id *client_id;
-};
-
 // connection struct
 struct per_connection_struct {
     struct ibv_mr server_mr;

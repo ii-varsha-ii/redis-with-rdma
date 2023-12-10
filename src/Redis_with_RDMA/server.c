@@ -11,15 +11,6 @@ static struct ibv_sge client_recv_sge, server_send_sge;
 static struct exchange_buffer server_buff, client_buff;
 static struct per_client_resources *client_res = NULL;
 
-// client resources struct
-struct per_client_resources {
-    struct ibv_pd *pd;
-    struct ibv_cq *cq;
-    struct ibv_comp_channel *completion_channel;
-    struct ibv_qp *qp;
-    struct rdma_cm_id *client_id;
-
-};
 
 // per memory struct
 struct per_memory_struct {
