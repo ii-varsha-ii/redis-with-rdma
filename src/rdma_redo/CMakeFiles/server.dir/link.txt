@@ -1,1 +1,0 @@
-/usr/bin/cc -O3 -DNDEBUG -rdynamic CMakeFiles/server.dir/utils.c.o CMakeFiles/server.dir/server.c.o -o server  -Wl,-rpath,/usr/local/lib -lpthread -libverbs -lrdmacm /usr/local/lib/libhiredis.so 

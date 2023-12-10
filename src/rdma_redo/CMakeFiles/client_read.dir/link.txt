@@ -1,1 +1,0 @@
-/usr/bin/cc -O3 -DNDEBUG -rdynamic CMakeFiles/client_read.dir/utils.c.o CMakeFiles/client_read.dir/client_read.c.o -o client_read  -Wl,-rpath,/usr/local/lib -lpthread -libverbs -lrdmacm /usr/local/lib/libhiredis.so 

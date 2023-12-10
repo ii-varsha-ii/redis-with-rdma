@@ -1,1 +1,0 @@
-/usr/bin/cc -O3 -DNDEBUG -rdynamic CMakeFiles/client_write.dir/utils.c.o CMakeFiles/client_write.dir/client_write.c.o -o client_write  -Wl,-rpath,/usr/local/lib -lpthread -libverbs -lrdmacm /usr/local/lib/libhiredis.so 
