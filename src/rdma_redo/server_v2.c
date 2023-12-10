@@ -194,7 +194,6 @@ static int disconnect_and_cleanup(struct per_memory_struct* conn)
 {
     struct rdma_cm_event *cm_event = NULL;
     int ret = -1;
-    rdma_ack_cm_event(cm_event);
 
     printf("A disconnect event is received from the client...\n");
     /* We free all the resources */
@@ -220,8 +219,6 @@ static int disconnect_and_cleanup(struct per_memory_struct* conn)
         // we continue anyways;
     }
     rdma_destroy_event_channel(cm_event_channel);
-    free(conn);
-    free(client_res);
 
     /* Destroy client cm id */
     ret = rdma_destroy_id(client_res->client_id);
@@ -229,6 +226,8 @@ static int disconnect_and_cleanup(struct per_memory_struct* conn)
         error("Failed to destroy client id cleanly, %d \n", -errno);
         // we continue anyways;
     }
+    free(conn);
+    free(client_res);
     printf("Server shut-down is complete \n");
     return 0;
 }
@@ -304,9 +303,8 @@ void* read_from_redis(void *args) {
 
             strcpy(conn->memory_region + ( atoi(offset) * BLOCK_SIZE) + (8 * (DATA_SIZE/BLOCK_SIZE)), reply->str);
 
-            free(previousValue);
             previousValue = strdup(reply->str);
-            info("MAP_UPDATE: key: %s value: %s\n", offset, reply->str);
+            info("MAP_UPDATE: key: %s value: %s", offset, reply->str);
             print_memory_map(conn->memory_region);
         }
 
@@ -344,6 +342,7 @@ static int wait_for_event() {
                 pthread_create(&thread1, NULL, write_to_redis, (void *) connection);
                 pthread_create(&thread2, NULL, read_from_redis, (void *) connection);
             case RDMA_CM_EVENT_DISCONNECTED:
+                rdma_ack_cm_event(dummy_event);
                 disconnect_and_cleanup(connection);
                 break;
             default:
