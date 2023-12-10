@@ -21,7 +21,7 @@ struct per_client_resources {
 
 };
 
-// connection struct
+// per memory struct
 struct per_memory_struct {
     char* memory_region;
     struct ibv_mr *memory_region_mr;
@@ -190,48 +190,48 @@ static void post_send_memory_map(struct per_memory_struct* conn) {
     }
 }
 
-//static int disconnect_and_cleanup(struct per_connection_struct* conn)
-//{
-//    struct rdma_cm_event *cm_event = NULL;
-//    int ret = -1;
-//    rdma_ack_cm_event(cm_event);
-//
-//    printf("A disconnect event is received from the client...\n");
-//    /* We free all the resources */
-//    /* Destroy QP */
-//    rdma_destroy_qp(client_res->client_id);
-//
-//    /* Destroy CQ */
-//    ret = ibv_destroy_cq(client_res->cq);
-//    if (ret) {
-//        error("Failed to destroy completion queue cleanly, %d \n", -errno);
-//        // we continue anyways;
-//    }
-//    /* Destroy completion channel */
-//    ret = ibv_destroy_comp_channel(client_res->completion_channel);
-//    if (ret) {
-//        error("Failed to destroy completion channel cleanly, %d \n", -errno);
-//        // we continue anyways;
-//    }
-//    /* Destroy rdma server id */
-//    ret = rdma_destroy_id(cm_server_id);
-//    if (ret) {
-//        error("Failed to destroy server id cleanly, %d \n", -errno);
-//        // we continue anyways;
-//    }
-//    rdma_destroy_event_channel(cm_event_channel);
-//    free(conn);
-//    free(client_res);
-//
-//    /* Destroy client cm id */
-//    ret = rdma_destroy_id(client_res->client_id);
-//    if (ret) {
-//        error("Failed to destroy client id cleanly, %d \n", -errno);
-//        // we continue anyways;
-//    }
-//    printf("Server shut-down is complete \n");
-//    return 0;
-//}
+static int disconnect_and_cleanup(struct per_memory_struct* conn)
+{
+    struct rdma_cm_event *cm_event = NULL;
+    int ret = -1;
+    rdma_ack_cm_event(cm_event);
+
+    printf("A disconnect event is received from the client...\n");
+    /* We free all the resources */
+    /* Destroy QP */
+    rdma_destroy_qp(client_res->client_id);
+
+    /* Destroy CQ */
+    ret = ibv_destroy_cq(client_res->cq);
+    if (ret) {
+        error("Failed to destroy completion queue cleanly, %d \n", -errno);
+        // we continue anyways;
+    }
+    /* Destroy completion channel */
+    ret = ibv_destroy_comp_channel(client_res->completion_channel);
+    if (ret) {
+        error("Failed to destroy completion channel cleanly, %d \n", -errno);
+        // we continue anyways;
+    }
+    /* Destroy rdma server id */
+    ret = rdma_destroy_id(cm_server_id);
+    if (ret) {
+        error("Failed to destroy server id cleanly, %d \n", -errno);
+        // we continue anyways;
+    }
+    rdma_destroy_event_channel(cm_event_channel);
+    free(conn);
+    free(client_res);
+
+    /* Destroy client cm id */
+    ret = rdma_destroy_id(client_res->client_id);
+    if (ret) {
+        error("Failed to destroy client id cleanly, %d \n", -errno);
+        // we continue anyways;
+    }
+    printf("Server shut-down is complete \n");
+    return 0;
+}
 
 static void poll_for_completion_events(int num_wc) {
     struct ibv_wc wc;
@@ -246,54 +246,52 @@ static void poll_for_completion_events(int num_wc) {
     }
 }
 
+// Read the latest update in the memory map and write to Redis
 void* write_to_redis(void *args) {
     struct per_memory_struct* conn = args;
-    char * previousValue = NULL;
     redisContext *context = redisConnect("127.0.0.1", 6379);
     if (!context) {
         fprintf(stderr, "Error:  Can't connect to Redis\n");
         pthread_exit((void*)0);
     }
+    char * previousValue = NULL;
+    char offset[2] = "0";
+    redisReply *reply;
     while(1) {
-        sleep(1);
-        printf("Previous String: %s\n", previousValue);
         char* str = conn->memory_region + ( 8 * (DATA_SIZE / BLOCK_SIZE)) + (0 * BLOCK_SIZE);
-        printf("Current String: %s\n", str);
         if ( previousValue == NULL || strcmp(previousValue, str) != 0) {
-            printf("New String: %s\n", str);
-            redisReply *reply;
-            reply = redisCommand(context, "SET %s %s", "0", str);
+            info("Previous String: %s\n", previousValue);
+            info("Updating %s to new string %s\n", previousValue, str);
+
+            reply = redisCommand(context, "SET %s %s", offset, str);
             if (!reply || context->err) {
                 fprintf(stderr, "Error:  Can't send command to Redis\n");
                 pthread_exit((void*)0);
             }
-            printf("Updating key: %s value: %s => %s \n", "0", str, reply->str);
+            info("REDIS_UPDATE: key: %s value: %s => %s \n", offset, str, reply->str);
             previousValue = strdup(str);
+            print_memory_map(conn->memory_region);
         }
-        print_memory_map(conn->memory_region);
     }
 }
 
-void onValueChanged(struct per_memory_struct* conn, const char* newValue) {
-    info("Key value changed: %s\n", newValue);
-    strcpy(conn->memory_region + (BLOCK_SIZE) + (8 * (DATA_SIZE/BLOCK_SIZE)), newValue);
-}
-
+// Read the latest update from Redis and update the memory map ( 0 )
 void* read_from_redis(void *args) {
     struct per_memory_struct* conn = args;
+
     redisContext *context = redisConnect("127.0.0.1", 6379);
     if (!context) {
         fprintf(stderr, "Error:  Can't connect to Redis\n");
         pthread_exit((void*)0);
     }
 
-    char* keyToPoll = "1";
+    char offset[2] = "1";
+
     redisReply* reply;
     char* previousValue = NULL;
 
     while (1) {
-        reply = redisCommand(context, "GET %s", keyToPoll);
-
+        reply = redisCommand(context, "GET %s", offset);
         if (reply == NULL || reply->type != REDIS_REPLY_STRING) {
             fprintf(stderr, "Error getting key value or key not found\n");
             freeReplyObject(reply);
@@ -301,10 +299,15 @@ void* read_from_redis(void *args) {
         }
 
         if (previousValue == NULL || strcmp(previousValue, reply->str) != 0) {
-            onValueChanged(conn, reply->str);
+            info("Previous String: %s\n", previousValue);
+            info("Updating %s to new string %s\n", previousValue, reply->str);
+
+            strcpy(conn->memory_region + ( atoi(offset) * BLOCK_SIZE) + (8 * (DATA_SIZE/BLOCK_SIZE)), reply->str);
 
             free(previousValue);
             previousValue = strdup(reply->str);
+            info("MAP_UPDATE: key: %s value: %s\n", offset, reply->str);
+            print_memory_map(conn->memory_region);
         }
 
         freeReplyObject(reply);
@@ -318,9 +321,8 @@ static int wait_for_event() {
 
     struct rdma_cm_event *dummy_event = NULL;
     struct per_memory_struct* connection = NULL;
-    pthread_t thread1;
+    pthread_t thread1, thread2;
 
-    // when a client connects, it sends a connect request
     while(rdma_get_cm_event(cm_event_channel, &dummy_event) == 0){
         struct rdma_cm_event cm_event;
         memcpy(&cm_event, dummy_event, sizeof(*dummy_event));
@@ -340,9 +342,9 @@ static int wait_for_event() {
                 post_send_memory_map(connection);
                 poll_for_completion_events(1);
                 pthread_create(&thread1, NULL, write_to_redis, (void *) connection);
-                pthread_create(&thread1, NULL, read_from_redis, (void *) connection);
+                pthread_create(&thread2, NULL, read_from_redis, (void *) connection);
             case RDMA_CM_EVENT_DISCONNECTED:
-//                disconnect_and_cleanup(connection);
+                disconnect_and_cleanup(connection);
                 break;
             default:
                 error("Event not found %s", (char *) cm_event.event);

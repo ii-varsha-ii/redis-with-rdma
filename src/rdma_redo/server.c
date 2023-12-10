@@ -9,7 +9,7 @@ static struct ibv_send_wr server_send_wr, *bad_server_send_wr = NULL;
 static struct ibv_sge client_recv_sge, server_send_sge;
 
 static struct exchange_buffer server_buff, client_buff;
-static struct per_client_resources *client_res = NULL;
+static struct per_client_resources *client_res[10];
 
 // client resources struct
 struct per_client_resources {
@@ -18,41 +18,41 @@ struct per_client_resources {
     struct ibv_comp_channel *completion_channel;
     struct ibv_qp *qp;
     struct rdma_cm_id *client_id;
+    struct ibv_mr *memory_region_mr;
 };
 
 // connection struct
 struct per_memory_struct {
     char* memory_region;
-    struct ibv_mr *memory_region_mr;
     unsigned long *mapping_table_start;
 };
 
-static void setup_client_resources(struct rdma_cm_id *cm_client_id, struct per_memory_struct* conn)
+static void setup_client_resources(struct rdma_cm_id *cm_client_id, struct per_memory_struct* conn, int i)
 {
-    client_res = (struct per_client_resources*) malloc(sizeof(struct per_client_resources));
+    client_res[i] = (struct per_client_resources*) malloc(sizeof(struct per_client_resources));
     if(!cm_client_id){
         error("Client id is still NULL \n");
         return;
     }
-    client_res->client_id = cm_client_id;
+    client_res[i]->client_id = cm_client_id;
 
-    HANDLE(client_res->pd = ibv_alloc_pd(cm_client_id->verbs));
-    debug("Protection domain (PD) allocated: %p \n", client_res->pd)
+    HANDLE(client_res[i]->pd = ibv_alloc_pd(cm_client_id->verbs));
+    debug("Protection domain (PD) allocated: %p \n", client_res[i]->pd)
 
-    HANDLE(client_res->completion_channel = ibv_create_comp_channel(cm_client_id->verbs));
+    HANDLE(client_res[i]->completion_channel = ibv_create_comp_channel(cm_client_id->verbs));
     debug("I/O completion event channel created: %p \n",
-          client_res->completion_channel)
+          client_res[i]->completion_channel)
 
-    HANDLE(client_res->cq = ibv_create_cq(cm_client_id->verbs,
+    HANDLE(client_res[i]->cq = ibv_create_cq(cm_client_id->verbs,
                                           CQ_CAPACITY,
                                           NULL,
-                                          client_res->completion_channel,
+                                          client_res[i]->completion_channel,
                                           0));
     debug("Completion queue (CQ) created: %p with %d elements \n",
-          client_res->cq, client_res->cq->cqe)
+          client_res[i]->cq, client_res[i]->cq->cqe)
 
     /* Ask for the event for all activities in the completion queue*/
-    HANDLE_NZ(ibv_req_notify_cq(client_res->cq,
+    HANDLE_NZ(ibv_req_notify_cq(client_res[i]->cq,
                                 0));
     bzero(&qp_init_attr, sizeof qp_init_attr);
     qp_init_attr.cap.max_recv_sge = MAX_SGE; /* Maximum SGE per receive posting */
@@ -60,20 +60,20 @@ static void setup_client_resources(struct rdma_cm_id *cm_client_id, struct per_m
     qp_init_attr.cap.max_send_sge = MAX_SGE; /* Maximum SGE per send posting */
     qp_init_attr.cap.max_send_wr = MAX_WR; /* Maximum send posting capacity */
     qp_init_attr.qp_type = IBV_QPT_RC; /* QP type, RC = Reliable connection */
-    qp_init_attr.recv_cq = client_res->cq;
-    qp_init_attr.send_cq = client_res->cq;
-    HANDLE_NZ(rdma_create_qp(client_res->client_id,
-                             client_res->pd,
+    qp_init_attr.recv_cq = client_res[i]->cq;
+    qp_init_attr.send_cq = client_res[i]->cq;
+    HANDLE_NZ(rdma_create_qp(client_res[i]->client_id,
+                             client_res[i]->pd,
                              &qp_init_attr ));
-    client_res->qp = cm_client_id->qp;
+    client_res[i]->qp = cm_client_id->qp;
 
-    conn->memory_region_mr = rdma_buffer_register(client_res->pd,
+    client_res[i]->memory_region_mr = rdma_buffer_register(client_res[i]->pd,
                                                   conn->memory_region,
                                                   DATA_SIZE  + (8 * (DATA_SIZE / BLOCK_SIZE)),
                                                   (IBV_ACCESS_LOCAL_WRITE|
                                                    IBV_ACCESS_REMOTE_READ | IBV_ACCESS_REMOTE_WRITE));
 
-    debug("Client QP created: %p \n", client_res->qp)
+    debug("Client QP created: %p \n", client_res[i]->qp)
 }
 
 
@@ -98,9 +98,9 @@ static void accept_conn(struct rdma_cm_id *cm_client_id) {
     debug("Wait for : RDMA_CM_EVENT_ESTABLISHED event \n")
 }
 
-static void post_recv_offset() {
+static void post_recv_offset(int i) {
     client_buff.message = malloc(sizeof(struct msg));
-    HANDLE(client_buff.buffer = rdma_buffer_register(client_res->pd,
+    HANDLE(client_buff.buffer = rdma_buffer_register(client_res[i]->pd,
                                                      client_buff.message,
                                                      sizeof(struct msg),
                                                      (IBV_ACCESS_LOCAL_WRITE)));
@@ -113,7 +113,7 @@ static void post_recv_offset() {
     client_recv_wr.sg_list = &client_recv_sge;
     client_recv_wr.num_sge = 1; // only one SGE
 
-    HANDLE_NZ(ibv_post_recv(client_res->qp,
+    HANDLE_NZ(ibv_post_recv(client_res[i]->qp,
                             &client_recv_wr,
                             &bad_client_recv_wr));
 
@@ -138,19 +138,20 @@ static void build_memory_map(struct per_memory_struct *conn) {
         strcpy(conn->memory_region + (i * BLOCK_SIZE) + (8 * (DATA_SIZE/ BLOCK_SIZE)), reply->str);
         freeReplyObject(reply);
     }
+
     print_memory_map(conn->memory_region);
 
     conn->mapping_table_start = (unsigned long * ) conn->memory_region;
     debug("Initiated memory map: %p\n", conn->mapping_table_start)
 }
 
-static void post_send_memory_map(struct per_memory_struct* conn) {
+static void post_send_memory_map(struct per_memory_struct* conn, int i) {
     struct sockaddr_in remote_sockaddr;
     struct ibv_wc wc;
 
     /* Extract client socket information */
     memcpy(&remote_sockaddr /* where to save */,
-           rdma_get_peer_addr(client_res->client_id) /* gives you remote sockaddr */,
+           rdma_get_peer_addr(client_res[i]->client_id) /* gives you remote sockaddr */,
            sizeof(struct sockaddr_in) /* max size */);
     info("A new connection is accepted from %s \n",
          inet_ntoa(remote_sockaddr.sin_addr));
@@ -160,10 +161,10 @@ static void post_send_memory_map(struct per_memory_struct* conn) {
         server_buff.message = malloc(sizeof(struct msg));
         server_buff.message->type = ADDRESS;
 
-        memcpy(&server_buff.message->data.mr, conn->memory_region_mr, sizeof(struct ibv_mr));
+        memcpy(&server_buff.message->data.mr, client_res[i]->memory_region_mr, sizeof(struct ibv_mr));
         server_buff.message->data.mr.addr = (void *)(conn->memory_region);
 
-        server_buff.buffer = rdma_buffer_register(client_res->pd,
+        server_buff.buffer = rdma_buffer_register(client_res[i]->pd,
                                                   server_buff.message,
                                                   sizeof(struct msg),
                                                   (IBV_ACCESS_LOCAL_WRITE|
@@ -184,7 +185,7 @@ static void post_send_memory_map(struct per_memory_struct* conn) {
         server_send_wr.send_flags = IBV_SEND_SIGNALED;
 
         // memory map should have been initiated already. send that memory_map address
-        HANDLE_NZ(ibv_post_send(client_res->qp, &server_send_wr, &bad_server_send_wr));
+        HANDLE_NZ(ibv_post_send(client_res[i]->qp, &server_send_wr, &bad_server_send_wr));
         info( "Send request with memory map ADDRESS is successful \n");
     }
 }
@@ -232,9 +233,9 @@ static void post_send_memory_map(struct per_memory_struct* conn) {
 //    return 0;
 //}
 
-static void poll_for_completion_events(int num_wc) {
+static void poll_for_completion_events(int num_wc, int i) {
     struct ibv_wc wc;
-    int total_wc = process_work_completion_events(client_res->completion_channel, &wc, num_wc);
+    int total_wc = process_work_completion_events(client_res[i]->completion_channel, &wc, num_wc);
 
     for (int i = 0 ; i < total_wc; i++) {
         if( (&(wc) + i)->opcode & IBV_WC_RECV ) {
@@ -250,38 +251,54 @@ void* mem_map_print(void *args) {
     while(1) {
         sleep(4);
         print_memory_map(conn->memory_region);
+
+
     }
+}
+
+struct client_mapping {
+    struct rdma_cm_event cm_event;
+    int i;
+};
+
+int getValue() {
+
 }
 
 static int wait_for_event() {
     int ret;
 
     struct rdma_cm_event *dummy_event = NULL;
+//    struct client_mapping *mappings[10] = NULL;
     struct per_memory_struct* connection = NULL;
     pthread_t thread1;
     connection = (struct per_memory_struct*) malloc (sizeof(struct per_memory_struct*));
     build_memory_map(connection);
 
+    int i = 0;
     // when a client connects, it sends a connect request
     while(rdma_get_cm_event(cm_event_channel, &dummy_event) == 0){
         struct rdma_cm_event cm_event;
         memcpy(&cm_event, dummy_event, sizeof(*dummy_event));
-
+        info("%s\n", cm_event.id->verbs->device->name)
         info("%s event received \n", rdma_event_str(cm_event.event));
         switch(cm_event.event) {
             case RDMA_CM_EVENT_CONNECT_REQUEST:
+//                mappings[i] = malloc(sizeof(struct client_mapping));
+//                mappings->cm_event = cm_event;
+//                mappings->i = i;
                 rdma_ack_cm_event(dummy_event); //Ack the event
-                info("Client ID: %p\n", &cm_event.id);
-                setup_client_resources(cm_event.id, connection); // send a recv req for client_metadata
-                post_recv_offset();
+                setup_client_resources(cm_event.id, connection, i); // send a recv req for client_metadata
+                post_recv_offset(i);
                 accept_conn(cm_event.id);
+                i = i + 1;
                 break;
             case RDMA_CM_EVENT_ESTABLISHED:
                 rdma_ack_cm_event(dummy_event);
-                poll_for_completion_events(1);
-                post_send_memory_map(connection);
-                poll_for_completion_events(1);
-                pthread_create(&thread1, NULL, mem_map_print, (void *) connection);
+                poll_for_completion_events(1, i);
+                post_send_memory_map(connection, i);
+                poll_for_completion_events(1, i);
+                //pthread_create(&thread1, NULL, mem_map_print, (void *) connection);
             case RDMA_CM_EVENT_DISCONNECTED:
 //                disconnect_and_cleanup(connection);
                 break;

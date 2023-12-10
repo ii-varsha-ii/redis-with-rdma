@@ -159,167 +159,68 @@ static int post_send_to_server()
     return 0;
 }
 
-/* This function does :
- * 1) Prepare memory buffers for RDMA operations
- * 1) RDMA write from src -> remote buffer
- * 2) RDMA read from remote bufer -> dst
- */
-//static int client_remote_memory_ops()
-//{
-//    struct ibv_wc wc;
-//    int ret = -1;
-//    client_dst_mr = rdma_buffer_register(pd,
-//                                         dst,
-//                                         strlen(src),
-//                                         (IBV_ACCESS_LOCAL_WRITE |
-//                                          IBV_ACCESS_REMOTE_WRITE |
-//                                          IBV_ACCESS_REMOTE_READ));
-//    if (!client_dst_mr) {
-//        error("We failed to create the destination buffer, -ENOMEM\n");
-//        return -ENOMEM;
-//    }
-//    /* Step 1: is to copy the local buffer into the remote buffer. We will
-//     * reuse the previous variables. */
-//    /* now we fill up SGE */
-//    client_send_sge.addr = (uint64_t) client_src_mr->addr;
-//    client_send_sge.length = (uint32_t) client_src_mr->length;
-//    client_send_sge.lkey = client_src_mr->lkey;
-//    /* now we link to the send work request */
-//    bzero(&client_send_wr, sizeof(client_send_wr));
-//    client_send_wr.sg_list = &client_send_sge;
-//    client_send_wr.num_sge = 1;
-//    client_send_wr.opcode = IBV_WR_RDMA_WRITE;
-//    client_send_wr.send_flags = IBV_SEND_SIGNALED;
-//    /* we have to tell server side info for RDMA */
-//    client_send_wr.wr.rdma.rkey = server_metadata_attr.stag.remote_stag;
-//    client_send_wr.wr.rdma.remote_addr = server_metadata_attr.address;
-//    /* Now we post it */
-//    ret = ibv_post_send(client_qp,
-//                        &client_send_wr,
-//                        &bad_client_send_wr);
-//    if (ret) {
-//        error("Failed to write client src buffer, errno: %d \n",
-//                   -errno);
-//        return -errno;
-//    }
-//    /* at this point we are expecting 1 work completion for the write */
-//    ret = process_work_completion_events(io_completion_channel,
-//                                         &wc, 1);
-//    if(ret != 1) {
-//        error("We failed to get 1 work completions , ret = %d \n",
-//                   ret);
-//        return ret;
-//    }
-//    info("Client side WRITE is complete \n");
-//
-//    // CLIENT READ
-//    /* Now we prepare a READ using same variables but for destination */
-//    client_send_sge.addr = (uint64_t) client_dst_mr->addr;
-//    client_send_sge.length = (uint32_t) client_dst_mr->length;
-//    client_send_sge.lkey = client_dst_mr->lkey;
-//    /* now we link to the send work request */
-//    bzero(&client_send_wr, sizeof(client_send_wr));
-//    client_send_wr.sg_list = &client_send_sge;
-//    client_send_wr.num_sge = 1;
-//    client_send_wr.opcode = IBV_WR_RDMA_READ;
-//    client_send_wr.send_flags = IBV_SEND_SIGNALED;
-//
-//
-//    /* we have to tell server side info for RDMA */
-//    client_send_wr.wr.rdma.rkey = server_metadata_attr.stag.remote_stag;
-//    client_send_wr.wr.rdma.remote_addr = server_metadata_attr.address;
-//    /* Now we post it */
-//    ret = ibv_post_send(client_qp,
-//                        &client_send_wr,
-//                        &bad_client_send_wr);
-//    if (ret) {
-//        error("Failed to read client dst buffer from the master, errno: %d \n",
-//                   -errno);
-//        return -errno;
-//    }
-//    /* at this point we are expecting 1 work completion for the write */
-//    ret = process_work_completion_events(io_completion_channel,
-//                                         &wc, 1);
-//    if(ret != 1) {
-//        error("We failed to get 1 work completions , ret = %d \n",
-//                   ret);
-//        return ret;
-//    }
-//
-//    info("The RDMA read data is ");
-//    printf("buffer attr, addr: %s , len: %u\n",
-//           (char*) client_dst_mr->addr,
-//           (unsigned int) client_dst_mr->length);
-//    info("Client side READ is complete \n");
-//    return 0;
-//}
-
-/* This function disconnects the RDMA connection from the server and cleans up
- * all the resources.
- */
-
-//static int client_disconnect_and_clean()
-//{
-//    struct rdma_cm_event *cm_event = NULL;
-//    int ret = -1;
-//    /* active disconnect from the client side */
-//    ret = rdma_disconnect(cm_client_id);
-//    if (ret) {
-//        error("Failed to disconnect, errno: %d \n", -errno);
-//        //continuing anyways
-//    }
-//    ret = on_event(cm_event_channel,
-//                                RDMA_CM_EVENT_DISCONNECTED,
-//                                &cm_event);
-//    if (ret) {
-//        error("Failed to get RDMA_CM_EVENT_DISCONNECTED event, ret = %d\n",
-//                   ret);
-//        //continuing anyways
-//    }
-//    ret = rdma_ack_cm_event(cm_event);
-//    if (ret) {
-//        error("Failed to acknowledge cm event, errno: %d\n",
-//                   -errno);
-//        //continuing anyways
-//    }
-//    /* Destroy QP */
-//    rdma_destroy_qp(cm_client_id);
-//    /* Destroy client cm id */
-//    ret = rdma_destroy_id(cm_client_id);
-//    if (ret) {
-//        error("Failed to destroy client id cleanly, %d \n", -errno);
-//        // we continue anyways;
-//    }
-//    /* Destroy CQ */
-//    ret = ibv_destroy_cq(client_cq);
-//    if (ret) {
-//        error("Failed to destroy completion queue cleanly, %d \n", -errno);
-//        // we continue anyways;
-//    }
-//    /* Destroy completion channel */
-//    ret = ibv_destroy_comp_channel(io_completion_channel);
-//    if (ret) {
-//        error("Failed to destroy completion channel cleanly, %d \n", -errno);
-//        // we continue anyways;
-//    }
-//    /* Destroy memory buffers */
-//    rdma_buffer_deregister(server_metadata_mr);
-//    rdma_buffer_deregister(client_metadata_mr);
-//    rdma_buffer_deregister(client_src_mr);
-//    rdma_buffer_deregister(client_dst_mr);
-//    /* We free the buffers */
-//    free(src);
-//    free(dst);
-//    /* Destroy protection domain */
-//    ret = ibv_dealloc_pd(pd);
-//    if (ret) {
-//        error("Failed to destroy client protection domain cleanly, %d \n", -errno);
-//        // we continue anyways;
-//    }
-//    rdma_destroy_event_channel(cm_event_channel);
-//    printf("Client resource clean up is complete \n");
-//    return 0;
-//}
+static int client_disconnect_and_clean()
+{
+    struct rdma_cm_event *cm_event = NULL;
+    int ret = -1;
+    /* active disconnect from the client side */
+    ret = rdma_disconnect(cm_client_id);
+    if (ret) {
+        error("Failed to disconnect, errno: %d \n", -errno);
+        //continuing anyways
+    }
+    ret = on_event(cm_event_channel,
+                                RDMA_CM_EVENT_DISCONNECTED,
+                                &cm_event);
+    if (ret) {
+        error("Failed to get RDMA_CM_EVENT_DISCONNECTED event, ret = %d\n",
+                   ret);
+        //continuing anyways
+    }
+    ret = rdma_ack_cm_event(cm_event);
+    if (ret) {
+        error("Failed to acknowledge cm event, errno: %d\n",
+                   -errno);
+        //continuing anyways
+    }
+    /* Destroy QP */
+    rdma_destroy_qp(cm_client_id);
+    /* Destroy client cm id */
+    ret = rdma_destroy_id(cm_client_id);
+    if (ret) {
+        error("Failed to destroy client id cleanly, %d \n", -errno);
+        // we continue anyways;
+    }
+    /* Destroy CQ */
+    ret = ibv_destroy_cq(client_cq);
+    if (ret) {
+        error("Failed to destroy completion queue cleanly, %d \n", -errno);
+        // we continue anyways;
+    }
+    /* Destroy completion channel */
+    ret = ibv_destroy_comp_channel(io_completion_channel);
+    if (ret) {
+        error("Failed to destroy completion channel cleanly, %d \n", -errno);
+        // we continue anyways;
+    }
+    /* Destroy memory buffers */
+    rdma_buffer_deregister(server_metadata_mr);
+    rdma_buffer_deregister(client_metadata_mr);
+    rdma_buffer_deregister(client_src_mr);
+    rdma_buffer_deregister(client_dst_mr);
+    /* We free the buffers */
+    free(src);
+    free(dst);
+    /* Destroy protection domain */
+    ret = ibv_dealloc_pd(pd);
+    if (ret) {
+        error("Failed to destroy client protection domain cleanly, %d \n", -errno);
+        // we continue anyways;
+    }
+    rdma_destroy_event_channel(cm_event_channel);
+    printf("Client resource clean up is complete \n");
+    return 0;
+}
 
 void usage() {
     printf("Usage:\n");
@@ -339,7 +240,7 @@ static void poll_for_completion_events(int num_wc) {
             }
         }
     }
-    info("done\n");
+    debug("done\n");
 }
 
 static void build_memory_map(struct per_connection_struct *conn) {
@@ -369,14 +270,12 @@ static void read_memory_map(struct per_connection_struct* conn) {
     client_send_wr.opcode = IBV_WR_RDMA_READ;
     client_send_wr.send_flags = IBV_SEND_SIGNALED;
     client_send_wr.wr.rdma.remote_addr = (uintptr_t) conn->server_mr.addr;
-    info("Posting address where %p\n", conn->server_mr.addr);
     client_send_wr.wr.rdma.rkey = conn->server_mr.rkey;
-    info("Posting rkey where %u\n", conn->server_mr.rkey);
     HANDLE_NZ(ibv_post_send(client_res->qp,
                             &client_send_wr,
                             &bad_client_send_wr));
 
-    info("RDMA read the remote memory map. \n");
+    debug("RDMA read the remote memory map. \n");
 }
 
 const char* generateString() {
@@ -413,71 +312,31 @@ static void write_to_memory_map(struct per_connection_struct* conn) {
     HANDLE_NZ(ibv_post_send(client_res->qp,
                         &client_send_wr,
                         &bad_client_send_wr));
-    info("RDMA write the remote memory map. \n");
-
+    debug("RDMA write the remote memory map. \n");
 }
 
 
 static void write_to_memory_map_in_offset(struct per_connection_struct* conn, int offset, const char* string_to_write) {
     strcpy(conn->local_memory_region + (offset*BLOCK_SIZE) + (8 * (DATA_SIZE / BLOCK_SIZE)), string_to_write);
 
-    print_memory_map(conn->local_memory_region);
-
     client_send_sge.addr = (uintptr_t)(conn->local_memory_region + (8 * (DATA_SIZE / BLOCK_SIZE)) + (offset * BLOCK_SIZE));
     client_send_sge.length = (uint32_t) BLOCK_SIZE;
     client_send_sge.lkey = conn->local_memory_region_mr->lkey;
-    /* now we link to the send work request */
+
     bzero(&client_send_wr, sizeof(client_send_wr));
     client_send_wr.sg_list = &client_send_sge;
     client_send_wr.num_sge = 1;
     client_send_wr.opcode = IBV_WR_RDMA_WRITE;
     client_send_wr.send_flags = IBV_SEND_SIGNALED;
-    /* we have to tell server side info for RDMA */
+
     client_send_wr.wr.rdma.rkey = conn->server_mr.rkey;
     client_send_wr.wr.rdma.remote_addr = (uintptr_t) conn->server_mr.addr + (8 * (DATA_SIZE / BLOCK_SIZE)) + (offset * BLOCK_SIZE);
-    /* Now we post it */
+
     HANDLE_NZ(ibv_post_send(client_res->qp,
                             &client_send_wr,
                             &bad_client_send_wr));
 
-    info("RDMA write the remote memory map. \n");
-}
-
-void onValueChanged(struct per_connection_struct* conn, const char* newValue) {
-    info("Key value changed: %s\n", newValue);
-    write_to_memory_map_in_offset(conn, 0, newValue);
-    poll_for_completion_events(1);
-}
-
-void* read_from_redis(void* args) {
-    struct per_connection_struct* conn = args;
-    redisContext *context = redisConnect("127.0.0.1", 6379);
-    if (!context) {
-        fprintf(stderr, "Error:  Can't connect to Redis\n");
-        pthread_exit((void*)0);
-    }
-    char* keyToPoll = "0";
-    redisReply* reply;
-    char* previousValue = NULL;
-
-    while (1) {
-        reply = redisCommand(context, "GET %s", keyToPoll);
-
-        if (reply == NULL || reply->type != REDIS_REPLY_STRING) {
-            fprintf(stderr, "Error getting key value or key not found\n");
-            freeReplyObject(reply);
-            continue;
-        }
-
-        if (previousValue == NULL || strcmp(previousValue, reply->str) != 0) {
-            onValueChanged(conn, reply->str);
-
-            free(previousValue);
-            previousValue = strdup(reply->str);
-        }
-
-        freeReplyObject(reply);
-    }
+    debug("RDMA write the remote memory map. \n");
 }
 
 static void read_from_memory_map_in_offset(struct per_connection_struct* conn, int offset) {
@@ -499,39 +358,83 @@ static void read_from_memory_map_in_offset(struct per_connection_struct* conn, i
                             &client_send_wr,
                             &bad_client_send_wr));
 
-    //info("RDMA read the remote memory map. \n");
+    debug("RDMA read the remote memory map \n");
 }
 
-void* write_to_redis(void *args) {
+void* read_from_redis(void* args) {
     struct per_connection_struct* conn = args;
+
     redisContext *context = redisConnect("127.0.0.1", 6379);
     if (!context) {
         fprintf(stderr, "Error:  Can't connect to Redis\n");
         pthread_exit((void*)0);
     }
-    char * previousValue = NULL;
-    int offset = 1;
-    while(1) {
-        read_from_memory_map_in_offset(conn, offset);
+
+    char offset[2] = "0";
+    redisReply* reply;
+    char* previousValue = NULL;
+
+    while (1) {
+        reply = redisCommand(context, "GET %s", offset);
+
+        if (reply == NULL || reply->type != REDIS_REPLY_STRING) {
+            fprintf(stderr, "Error getting key value or key not found\n");
+            freeReplyObject(reply);
+            continue;
+        }
+
+        if (previousValue == NULL || strcmp(previousValue, reply->str) != 0) {
+            info("Previous String: %s\n", previousValue);
+            info("Updating %s to new string %s\n", previousValue, reply->str);
+
+            write_to_memory_map_in_offset(conn, atoi(offset), reply->str);
+            poll_for_completion_events(1);
+
+            free(previousValue);
+            previousValue = strdup(reply->str);
+            info("MAP_UPDATE: key: %s value: %s\n", offset, reply->str);
+            print_memory_map(conn->local_memory_region);
+        }
+
+        freeReplyObject(reply);
+    }
+}
+
+void* write_to_redis(void *args) {
+    struct per_connection_struct *conn = args;
+
+    redisContext *context = redisConnect("127.0.0.1", 6379);
+    if (!context) {
+        fprintf(stderr, "Error:  Can't connect to Redis\n");
+        pthread_exit((void *) 0);
+    }
+
+    char *previousValue = NULL;
+    char offset[2] = "1";
+    redisReply *reply;
+
+    while (1) {
+        read_from_memory_map_in_offset(conn, atoi(offset));
         poll_for_completion_events(1);
-        printf("Previous String: %s\n", previousValue);
-        char* str = conn->local_memory_region + ( 8 * (DATA_SIZE / BLOCK_SIZE)) + (offset * BLOCK_SIZE);
-        printf("Current String: %s\n", str);
-        if ( previousValue == NULL || strcmp(previousValue, str) != 0) {
-            printf("New String: %s\n", str);
-            redisReply *reply;
-            reply = redisCommand(context, "SET %s %s", "1", str);
+
+        char *str = conn->local_memory_region + (8 * (DATA_SIZE / BLOCK_SIZE)) + (atoi(offset) * BLOCK_SIZE);
+
+        if (previousValue == NULL || strcmp(previousValue, str) != 0) {
+            info("Previous String: %s\n", previousValue);
+            info("Updating %s to new string %s\n", previousValue, str);
+
+            reply = redisCommand(context, "SET %s %s", offset, str);
             if (!reply || context->err) {
                 fprintf(stderr, "Error:  Can't send command to Redis\n");
-                pthread_exit((void*)0);
+                pthread_exit((void *) 0);
             }
-            printf("Updating key: %s value: %s => %s \n", "1", str, reply->str);
+            info("REDIS_UPDATE: key: %s value: %s => %s \n", offset, str, reply->str);
             previousValue = strdup(str);
+            print_memory_map(conn->local_memory_region);
         }
         sleep(1);
     }
 }
-
 
 static int wait_for_event(struct sockaddr_in *s_addr) {
 
