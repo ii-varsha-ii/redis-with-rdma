@@ -365,13 +365,12 @@ void* read_from_redis(void* args) {
         }
 
         if (previousValue == NULL || strcmp(previousValue, reply->str) != 0) {
-            info("Previous String: %s\n", previousValue);
+            info("Previous String (%s): %s\n", offset, previousValue);
             info("Updating %s to new string %s\n", previousValue, reply->str);
 
             write_to_memory_map_in_offset(conn, atoi(offset), reply->str);
             poll_for_completion_events(1);
-
-            free(previousValue);
+            
             previousValue = strdup(reply->str);
             info("MAP_UPDATE: key: %s value: %s\n", offset, reply->str);
             print_memory_map(conn->local_memory_region);
@@ -401,7 +400,7 @@ void* write_to_redis(void *args) {
         char *str = conn->local_memory_region + (8 * (DATA_SIZE / BLOCK_SIZE)) + (atoi(offset) * BLOCK_SIZE);
 
         if (previousValue == NULL || strcmp(previousValue, str) != 0) {
-            info("Previous String: %s\n", previousValue);
+            info("Previous String (%s): %s\n", offset, previousValue);
             info("Updating %s to new string %s\n", previousValue, str);
 
             reply = redisCommand(context, "SET %s %s", offset, str);
