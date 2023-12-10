@@ -483,7 +483,7 @@ void* read_from_redis(void* args) {
 static void read_from_memory_map_in_offset(struct per_connection_struct* conn, int offset) {
     memcpy(&conn->server_mr, &server_buff.message->data.mr, sizeof(conn->server_mr));
 
-    client_send_sge.addr = (uintptr_t)(conn->local_memory_region + (8 * (DATA_SIZE / BLOCK_SIZE)) + (offset + BLOCK_SIZE));
+    client_send_sge.addr = (uintptr_t)(conn->local_memory_region + (8 * (DATA_SIZE / BLOCK_SIZE)) + (offset * BLOCK_SIZE));
     client_send_sge.length = (uint32_t) BLOCK_SIZE;
     client_send_sge.lkey = conn->local_memory_region_mr->lkey;
 
@@ -492,7 +492,7 @@ static void read_from_memory_map_in_offset(struct per_connection_struct* conn, i
     client_send_wr.num_sge = 1;
     client_send_wr.opcode = IBV_WR_RDMA_READ;
     client_send_wr.send_flags = IBV_SEND_SIGNALED;
-    client_send_wr.wr.rdma.remote_addr = (uintptr_t) conn->server_mr.addr + (8 * (DATA_SIZE / BLOCK_SIZE)) + (offset + BLOCK_SIZE);
+    client_send_wr.wr.rdma.remote_addr = (uintptr_t) conn->server_mr.addr + (8 * (DATA_SIZE / BLOCK_SIZE)) + (offset * BLOCK_SIZE);
     client_send_wr.wr.rdma.rkey = conn->server_mr.rkey;
 
     HANDLE_NZ(ibv_post_send(client_res->qp,
@@ -512,7 +512,6 @@ void* write_to_redis(void *args) {
     char * previousValue = NULL;
     int offset = 1;
     while(1) {
-
         read_from_memory_map_in_offset(conn, offset);
         poll_for_completion_events(1);
         printf("Previous String: %s\n", previousValue);
@@ -526,7 +525,7 @@ void* write_to_redis(void *args) {
                 fprintf(stderr, "Error:  Can't send command to Redis\n");
                 pthread_exit((void*)0);
             }
-            printf("Updating key: %s value: %s => %s \n", "0", str, reply->str);
+            printf("Updating key: %s value: %s => %s \n", "1", str, reply->str);
             previousValue = strdup(str);
         }
         sleep(1);
