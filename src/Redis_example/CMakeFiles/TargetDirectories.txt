@@ -1,4 +1,0 @@
-/users/nvarsha/CSCI5572-AOS/src/Redis_example/CMakeFiles/rdma_server.dir
-/users/nvarsha/CSCI5572-AOS/src/Redis_example/CMakeFiles/rdma_client.dir
-/users/nvarsha/CSCI5572-AOS/src/Redis_example/CMakeFiles/edit_cache.dir
-/users/nvarsha/CSCI5572-AOS/src/Redis_example/CMakeFiles/rebuild_cache.dir

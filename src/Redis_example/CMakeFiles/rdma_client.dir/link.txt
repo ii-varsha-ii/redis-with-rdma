@@ -1,1 +1,0 @@
-/usr/bin/cc -O3 -DNDEBUG -rdynamic CMakeFiles/rdma_client.dir/rdma_common.c.o CMakeFiles/rdma_client.dir/rdma_client.c.o -o bin/rdma_client  -lpthread -libverbs -lrdmacm 
