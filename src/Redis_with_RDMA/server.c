@@ -251,9 +251,8 @@ void* write_to_redis(void *args) {
 
     while(1) {
         char* str = conn->memory_region + ( 8 * (DATA_SIZE / BLOCK_SIZE)) + (atoi(offset) * BLOCK_SIZE);
-	//info("%s %s %s\n", offset, str, previousValue);
         if (strcmp(previousValue, str) != 0) {
-            info("Previous String: %s\n", previousValue);
+            info("Previous String (%s): %s\n", offset, previousValue);
             info("Updating %s to new string %s\n", previousValue, str);
 
             reply = redisCommand(context, "SET %s %s", offset, str);
@@ -291,7 +290,7 @@ void* read_from_redis(void *args) {
         }
 
         if (strcmp(previousValue, reply->str) != 0) {
-            info("Previous String: %s\n", previousValue);
+            info("Previous String(%s): %s\n", offset, previousValue);
             info("Updating %s to new string %s\n", previousValue, reply->str);
 
             strcpy(conn->memory_region + ( atoi(offset) * BLOCK_SIZE) + (8 * (DATA_SIZE/BLOCK_SIZE)), reply->str);
