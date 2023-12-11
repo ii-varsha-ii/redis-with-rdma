@@ -254,13 +254,7 @@ void* write_to_redis(void *args) {
         if (strcmp(previousValue, str) != 0) {
             info("Previous String (%s): %s\n", offset, previousValue);
             info("Updating %s to new string %s\n", previousValue, str);
-
             reply = redisCommand(context, "SET %s %s", offset, str);
-
-            struct timeval current_time;
-            gettimeofday(&current_time, NULL);
-            printf("seconds : %ld\nmicro seconds : %ld\n",
-                   current_time.tv_sec, current_time.tv_usec);
 
             if (!reply || context->err) {
                 fprintf(stderr, "Error:  Can't send command to Redis\n");
@@ -288,7 +282,8 @@ void* read_from_redis(void *args) {
     char offset[2] = {'1', '\0'};
     redisReply* reply;
     char* previousValue = "(nil)";
-
+    clock_t start_t, end_t;
+    double total_t;
     while (1) {
         reply = redisCommand(context, "GET %s", offset);
         if (reply == NULL || ( reply->type != REDIS_REPLY_STRING && reply->str == NULL )) {
@@ -300,7 +295,10 @@ void* read_from_redis(void *args) {
             info("Previous String(%s): %s\n", offset, previousValue);
             info("Updating %s to new string %s\n", previousValue, reply->str);
 
+            start_t = clock();
             strcpy(conn->memory_region + ( atoi(offset) * BLOCK_SIZE) + (8 * (DATA_SIZE/BLOCK_SIZE)), reply->str);
+
+            printf("Total time taken by CPU: %ld\n", start_t  );
 
             previousValue = strdup(reply->str);
             info("MAP_UPDATE: key: %s value: %s", offset, reply->str);

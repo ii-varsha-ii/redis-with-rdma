@@ -14,6 +14,7 @@
 #include <hiredis/hiredis.h>
 #include <hiredis/adapters/poll.h>
 #include <hiredis/async.h>
+#include <time.h>
 
 #include <rdma/rdma_cma.h>
 #include <infiniband/verbs.h>
@@ -51,8 +52,8 @@
     fprintf(stdout, "log: "msg, ## args);\
 }while(0);
 
-#define DATA_SIZE (100 * 1024 * 5)
-#define BLOCK_SIZE (100 * 1024)
+#define DATA_SIZE (1024 * 1024 * 5)
+#define BLOCK_SIZE (1024 * 1024)
 
 struct exchange_buffer {
     struct msg* message;
