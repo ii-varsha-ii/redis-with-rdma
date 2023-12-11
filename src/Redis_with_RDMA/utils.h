@@ -21,7 +21,6 @@
 #define DEFAULT_RDMA_PORT (12345)
 #define MAX_CONNECTION (5)
 #define ENABLE_ERROR
-#define ENABLE_DEBUG
 
 #define CQ_CAPACITY (16)
 #define MAX_SGE (2)
