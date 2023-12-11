@@ -11,6 +11,15 @@ static struct ibv_sge client_recv_sge, server_send_sge;
 static struct exchange_buffer server_buff, client_buff;
 static struct per_client_resources *client_res = NULL;
 
+// client resources struct
+struct per_client_resources {
+    struct ibv_pd *pd;
+    struct ibv_cq *cq;
+    struct ibv_comp_channel *completion_channel;
+    struct ibv_qp *qp;
+    struct rdma_cm_id *client_id;
+
+};
 
 // per memory struct
 struct per_memory_struct {
@@ -181,39 +190,39 @@ static void post_send_memory_map(struct per_memory_struct* conn) {
     }
 }
 
-static int disconnect_and_cleanup(struct per_memory_struct* conn)
-{
-    int ret = -1;
-    /* Destroy QP */
-    rdma_destroy_qp(client_res->client_id);
-
-    /* Destroy CQ */
-    ret = ibv_destroy_cq(client_res->cq);
-    if (ret) {
-        error("Failed to destroy completion queue cleanly, %d \n", -errno);
-    }
-    /* Destroy completion channel */
-    ret = ibv_destroy_comp_channel(client_res->completion_channel);
-    if (ret) {
-        error("Failed to destroy completion channel cleanly, %d \n", -errno);
-    }
-    /* Destroy rdma server id */
-    ret = rdma_destroy_id(cm_server_id);
-    if (ret) {
-        error("Failed to destroy server id cleanly, %d \n", -errno);
-    }
-    rdma_destroy_event_channel(cm_event_channel);
-
-    /* Destroy client cm id */
-    ret = rdma_destroy_id(client_res->client_id);
-    if (ret) {
-        error("Failed to destroy client id cleanly, %d \n", -errno);
-    }
-    free(conn);
-    free(client_res);
-    printf("Server shut-down is complete \n");
-    return 0;
-}
+//static int disconnect_and_cleanup(struct per_memory_struct* conn)
+//{
+//    int ret = -1;
+//    /* Destroy QP */
+//    rdma_destroy_qp(client_res->client_id);
+//
+//    /* Destroy CQ */
+//    ret = ibv_destroy_cq(client_res->cq);
+//    if (ret) {
+//        error("Failed to destroy completion queue cleanly, %d \n", -errno);
+//    }
+//    /* Destroy completion channel */
+//    ret = ibv_destroy_comp_channel(client_res->completion_channel);
+//    if (ret) {
+//        error("Failed to destroy completion channel cleanly, %d \n", -errno);
+//    }
+//    /* Destroy rdma server id */
+//    ret = rdma_destroy_id(cm_server_id);
+//    if (ret) {
+//        error("Failed to destroy server id cleanly, %d \n", -errno);
+//    }
+//    rdma_destroy_event_channel(cm_event_channel);
+//
+//    /* Destroy client cm id */
+//    ret = rdma_destroy_id(client_res->client_id);
+//    if (ret) {
+//        error("Failed to destroy client id cleanly, %d \n", -errno);
+//    }
+//    free(conn);
+//    free(client_res);
+//    printf("Server shut-down is complete \n");
+//    return 0;
+//}
 
 static void poll_for_completion_events(int num_wc) {
     struct ibv_wc wc;
@@ -322,14 +331,14 @@ static int wait_for_event() {
                 rdma_ack_cm_event(dummy_event);
                 poll_for_completion_events(1);
                 post_send_memory_map(connection);
-                poll_for_completion_events(1);
-                pthread_create(&thread1, NULL, write_to_redis, (void *) connection);
-                pthread_create(&thread2, NULL, read_from_redis, (void *) connection);
+                poll_for_completion_events(2);
+//                pthread_create(&thread1, NULL, write_to_redis, (void *) connection);
+//                pthread_create(&thread2, NULL, read_from_redis, (void *) connection);
                 break;
-            case RDMA_CM_EVENT_DISCONNECTED:
-                rdma_ack_cm_event(dummy_event);
-                disconnect_and_cleanup(connection);
-                break;
+//            case RDMA_CM_EVENT_DISCONNECTED:
+//                rdma_ack_cm_event(dummy_event);
+//                disconnect_and_cleanup(connection);
+//                break;
             default:
                 error("Event not found %s", (char *) cm_event.event);
                 return -1;

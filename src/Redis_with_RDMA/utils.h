@@ -21,10 +21,11 @@
 #define DEFAULT_RDMA_PORT (12345)
 #define MAX_CONNECTION (5)
 #define ENABLE_ERROR
+//#define ENABLE_DEBUG
 
 #define CQ_CAPACITY (16)
 #define MAX_SGE (2)
-#define MAX_WR (1000)
+#define MAX_WR (10)
 
 #define HANDLE(x)  do { if (!(x)) error(#x " failed (returned zero/null).\n"); } while (0)
 #define HANDLE_NZ(x) do { if ( (x)) error(#x " failed (returned non-zero)." ); } while (0)
@@ -47,7 +48,7 @@
 #endif
 
 #define info(msg, args...) do {\
-    printf("log: "msg, ## args);\
+    fprintf(stdout, "log: "msg, ## args);\
 }while(0);
 
 #define DATA_SIZE 1024 * 5
@@ -68,16 +69,6 @@ struct msg {
         struct ibv_mr mr;
         unsigned long offset;
     }data;
-};
-
-// client resources struct
-struct per_client_resources {
-    struct ibv_pd *pd;
-    struct ibv_cq *cq;
-    struct ibv_comp_channel *completion_channel;
-    struct ibv_qp *qp;
-    struct rdma_cm_id *client_id;
-
 };
 
 int get_addr(char *dst, struct sockaddr *addr);

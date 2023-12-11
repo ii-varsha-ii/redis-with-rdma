@@ -18,6 +18,17 @@ struct per_connection_struct {
     struct ibv_mr *local_memory_region_mr;
 };
 
+// client resources struct
+struct per_client_resources {
+    struct ibv_pd *pd;
+    struct ibv_cq *cq;
+    struct ibv_comp_channel *completion_channel;
+    struct ibv_qp *qp;
+    struct rdma_cm_id *client_id;
+
+};
+
+
 static void client_prepare_connection(struct sockaddr_in *s_addr) {
     client_res = (struct per_client_resources*) malloc(sizeof(struct per_client_resources));
 
@@ -147,46 +158,46 @@ static int post_send_to_server()
     return 0;
 }
 
-static int disconnect_and_cleanup()
-{
-    int ret = -1;
-    ret = rdma_disconnect(client_res->client_id);
-    if (ret) {
-        error("Failed to disconnect, errno: %d \n", -errno);
-    }
-
-    /* Destroy QP */
-    rdma_destroy_qp(client_res->client_id);
-
-    /* Destroy client cm id */
-    ret = rdma_destroy_id(client_res->client_id);
-    if (ret) {
-        error("Failed to destroy client id cleanly, %d \n", -errno);
-    }
-    /* Destroy CQ */
-    ret = ibv_destroy_cq(client_res->cq);
-    if (ret) {
-        error("Failed to destroy completion queue cleanly, %d \n", -errno);
-    }
-    /* Destroy completion channel */
-    ret = ibv_destroy_comp_channel(client_res->completion_channel);
-    if (ret) {
-        error("Failed to destroy completion channel cleanly, %d \n", -errno);
-    }
-
-    rdma_buffer_deregister(server_buff.buffer);
-    rdma_buffer_deregister(client_buff.buffer);
-
-    /* Destroy protection domain */
-    ret = ibv_dealloc_pd(client_res->pd);
-    if (ret) {
-        error("Failed to destroy client protection domain cleanly, %d \n", -errno);
-
-    }
-    rdma_destroy_event_channel(cm_event_channel);
-    printf("Client resource clean up is complete \n");
-    return 0;
-}
+//static int disconnect_and_cleanup()
+//{
+//    int ret = -1;
+//    ret = rdma_disconnect(client_res->client_id);
+//    if (ret) {
+//        error("Failed to disconnect, errno: %d \n", -errno);
+//    }
+//
+//    /* Destroy QP */
+//    rdma_destroy_qp(client_res->client_id);
+//
+//    /* Destroy client cm id */
+//    ret = rdma_destroy_id(client_res->client_id);
+//    if (ret) {
+//        error("Failed to destroy client id cleanly, %d \n", -errno);
+//    }
+//    /* Destroy CQ */
+//    ret = ibv_destroy_cq(client_res->cq);
+//    if (ret) {
+//        error("Failed to destroy completion queue cleanly, %d \n", -errno);
+//    }
+//    /* Destroy completion channel */
+//    ret = ibv_destroy_comp_channel(client_res->completion_channel);
+//    if (ret) {
+//        error("Failed to destroy completion channel cleanly, %d \n", -errno);
+//    }
+//
+//    rdma_buffer_deregister(server_buff.buffer);
+//    rdma_buffer_deregister(client_buff.buffer);
+//
+//    /* Destroy protection domain */
+//    ret = ibv_dealloc_pd(client_res->pd);
+//    if (ret) {
+//        error("Failed to destroy client protection domain cleanly, %d \n", -errno);
+//
+//    }
+//    rdma_destroy_event_channel(cm_event_channel);
+//    printf("Client resource clean up is complete \n");
+//    return 0;
+//}
 
 static void poll_for_completion_events(int num_wc) {
     struct ibv_wc wc;
@@ -320,6 +331,13 @@ static void read_from_memory_map_in_offset(struct per_connection_struct* conn, i
     debug("RDMA read the remote memory map \n");
 }
 
+static void update_qp() {
+    struct ibv_qp_attr qp_attr;
+    qp_attr.qp_state = IBV_QPS_RESET;
+    ibv_modify_qp(client_res->qp, &qp_attr, IBV_QP_STATE);
+}
+
+
 void* read_from_redis(void* args) {
     struct per_connection_struct* conn = args;
 
@@ -347,7 +365,7 @@ void* read_from_redis(void* args) {
             info("Updating %s to new string %s\n", previousValue, reply->str);
 
             write_to_memory_map_in_offset(conn, atoi(offset), reply->str);
-//            poll_for_completion_events(1);
+            update_qp();
 
             previousValue = strdup(reply->str);
             info("MAP_UPDATE: key: %s value: %s\n", offset, reply->str);
@@ -372,13 +390,10 @@ void* write_to_redis(void *args) {
     redisReply *reply;
 
     while (1) {
-        printf("%d\n", atoi(offset));
-	read_from_memory_map_in_offset(conn, atoi(offset));
-        //poll_for_completion_events(1);
-
+	    read_from_memory_map_in_offset(conn, atoi(offset));
+        update_qp();
         char *str = conn->local_memory_region + (8 * (DATA_SIZE / BLOCK_SIZE)) + (atoi(offset) * BLOCK_SIZE);
 
-	printf("%s\n", str);
         if (strcmp(previousValue, str) != 0) {
             info("Previous String (%s): %s\n", offset, previousValue);
             info("Updating %s to new string %s\n", previousValue, str);
@@ -392,7 +407,6 @@ void* write_to_redis(void *args) {
             previousValue = strdup(str);
             print_memory_map(conn->local_memory_region);
         }
-        sleep(1);
     }
 }
 
@@ -424,14 +438,15 @@ static int wait_for_event(struct sockaddr_in *s_addr) {
                 post_send_to_server();
                 poll_for_completion_events(2); // post_recv_server_memory_map, post_send_to_server
                 read_memory_map(connection);
-              // poll_for_completion_events(1);
+                update_qp();
+                //poll_for_completion_events(1);
                 pthread_create(&thread1, NULL, read_from_redis, (void*) connection);
                 pthread_create(&thread2, NULL, write_to_redis, (void *) connection);
                 break;
-            case RDMA_CM_EVENT_DISCONNECTED:
-                HANDLE_NZ(rdma_ack_cm_event(dummy_event));
-                disconnect_and_cleanup();
-                break;
+//            case RDMA_CM_EVENT_DISCONNECTED:
+//                HANDLE_NZ(rdma_ack_cm_event(dummy_event));
+//                disconnect_and_cleanup();
+                //break;
             default:
                 error("Event not found %s", (char *) cm_event.event);
                 break;
