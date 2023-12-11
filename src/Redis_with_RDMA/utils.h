@@ -51,8 +51,8 @@
     fprintf(stdout, "log: "msg, ## args);\
 }while(0);
 
-#define DATA_SIZE 100 * 1024 * 5
-#define BLOCK_SIZE 100 * 1024
+#define DATA_SIZE (100 * 1024 * 5)
+#define BLOCK_SIZE (100 * 1024)
 
 struct exchange_buffer {
     struct msg* message;
