@@ -464,7 +464,6 @@ static int wait_for_event(struct sockaddr_in *s_addr) {
                 poll_for_completion_events(2); // post_recv_server_memory_map, post_send_to_server
                 read_memory_map(connection);
                 process_without_fetching_wq(&wc, 1);
-                poll_for_completion_events(1);
                 pthread_create(&thread1, NULL, read_from_redis, (void*) connection);
                 pthread_create(&thread2, NULL, write_to_redis, (void *) connection);
                 break;
