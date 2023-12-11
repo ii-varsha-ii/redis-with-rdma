@@ -21,10 +21,11 @@
 #define DEFAULT_RDMA_PORT (12345)
 #define MAX_CONNECTION (5)
 #define ENABLE_ERROR
+#define ENABLE_DEBUG
 
 #define CQ_CAPACITY (16)
 #define MAX_SGE (2)
-#define MAX_WR (8)
+#define MAX_WR (1000)
 
 #define HANDLE(x)  do { if (!(x)) error(#x " failed (returned zero/null).\n"); } while (0)
 #define HANDLE_NZ(x) do { if ( (x)) error(#x " failed (returned non-zero)." ); } while (0)

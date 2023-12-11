@@ -236,13 +236,14 @@ void* write_to_redis(void *args) {
         fprintf(stderr, "Error:  Can't connect to Redis\n");
         pthread_exit((void*)0);
     }
-    char * previousValue = NULL;
+    char * previousValue = "(nil)";
     char offset[2] = {'0', '\0'};
     redisReply *reply;
 
     while(1) {
         char* str = conn->memory_region + ( 8 * (DATA_SIZE / BLOCK_SIZE)) + (atoi(offset) * BLOCK_SIZE);
-        if ( previousValue == NULL || strcmp(previousValue, str) != 0) {
+
+        if (strcmp(previousValue, str) != 0) {
             info("Previous String: %s\n", previousValue);
             info("Updating %s to new string %s\n", previousValue, str);
 
@@ -255,6 +256,7 @@ void* write_to_redis(void *args) {
             previousValue = strdup(str);
             print_memory_map(conn->memory_region);
         }
+
     }
 }
 
@@ -270,17 +272,16 @@ void* read_from_redis(void *args) {
 
     char offset[2] = {'1', '\0'};
     redisReply* reply;
-    char* previousValue = NULL;
+    char* previousValue = "(nil)";
 
     while (1) {
         reply = redisCommand(context, "GET %s", offset);
-        if (reply == NULL || reply->type != REDIS_REPLY_STRING) {
-            fprintf(stderr, "Error getting key value or key not found\n");
+        if (reply == NULL || ( reply->type != REDIS_REPLY_STRING && reply->str == NULL )) {
             freeReplyObject(reply);
             continue;
         }
 
-        if (previousValue == NULL || strcmp(previousValue, reply->str) != 0) {
+        if (strcmp(previousValue, reply->str) != 0) {
             info("Previous String: %s\n", previousValue);
             info("Updating %s to new string %s\n", previousValue, reply->str);
 
