@@ -389,6 +389,11 @@ void* read_from_redis(void* args) {
             info("Previous String (%s): %s\n", offset, previousValue);
             info("Updating %s to new string %s\n", previousValue, reply->str);
 
+            struct timeval current_time;
+            gettimeofday(&current_time, NULL);
+            printf("seconds : %ld\nmicro seconds : %ld\n",
+                   current_time.tv_sec, current_time.tv_usec);
+
             write_to_memory_map_in_offset(conn, atoi(offset), reply->str);
             process_without_fetching_wq(&wc, 1);
 

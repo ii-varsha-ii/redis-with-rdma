@@ -256,10 +256,17 @@ void* write_to_redis(void *args) {
             info("Updating %s to new string %s\n", previousValue, str);
 
             reply = redisCommand(context, "SET %s %s", offset, str);
+
+            struct timeval current_time;
+            gettimeofday(&current_time, NULL);
+            printf("seconds : %ld\nmicro seconds : %ld\n",
+                   current_time.tv_sec, current_time.tv_usec);
+
             if (!reply || context->err) {
                 fprintf(stderr, "Error:  Can't send command to Redis\n");
                 pthread_exit((void*)0);
             }
+
             info("REDIS_UPDATE: key: %s value: %s => %s \n", offset, str, reply->str);
             previousValue = strdup(str);
             print_memory_map(conn->memory_region);
