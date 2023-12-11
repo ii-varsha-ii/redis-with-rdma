@@ -105,7 +105,7 @@ int process_work_completion_events (struct ibv_comp_channel *comp_channel,
         error("Failed to get next CQ event due to %d \n", -errno);
         return -errno;
     }
-
+    printf("%p\n", cq_ptr);
     /* Request for more notifications. */
     ret = ibv_req_notify_cq(cq_ptr, 0);
     if (ret){

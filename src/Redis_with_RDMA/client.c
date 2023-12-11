@@ -333,8 +333,42 @@ static void read_from_memory_map_in_offset(struct per_connection_struct* conn, i
 
 static void update_qp() {
     struct ibv_qp_attr qp_attr;
-    qp_attr.qp_state = IBV_QPS_RESET;
+    qp_attr.qp_state = IBV_QPS_ERR;
     ibv_modify_qp(client_res->qp, &qp_attr, IBV_QP_STATE);
+}
+int process_without_fetching_wq(struct ibv_wc *wc, int max_wc) {
+    int total_wc, i;
+    int ret = -1;
+    ret = ibv_req_notify_cq(client_res->cq, 0);
+    if (ret){
+        error("Failed to request further notifications %d \n", -errno);
+        return -errno;
+    }
+    total_wc = 0;
+    do {
+        ret = ibv_poll_cq(client_res->cq /* the CQ, we got notification for */,
+                          max_wc - total_wc /* number of remaining WC elements*/,
+                          wc + total_wc/* where to store */);
+        if (ret < 0) {
+            error("Failed to poll cq for wc due to %d \n", ret);
+            /* ret is errno here */
+            return ret;
+        }
+        total_wc += ret;
+    } while (total_wc < max_wc);
+    debug("%d WC are completed \n", total_wc)
+    /* Now we check validity and status of I/O work completions */
+    for( i = 0 ; i < total_wc ; i++) {
+        if (wc[i].status != IBV_WC_SUCCESS) {
+            error("Work completion (WC) has error status: %s at index %d \n",
+                  ibv_wc_status_str(wc[i].status), i);
+            /* return negative value */
+            return -(wc[i].status);
+        }
+    }
+    /* Similar to connection management events, we need to acknowledge CQ events */
+    ibv_ack_cq_events(client_res->cq, 1);
+    return total_wc;
 }
 
 
@@ -359,13 +393,14 @@ void* read_from_redis(void* args) {
             freeReplyObject(reply);
             continue;
         }
-
+struct ibv_wc wc;
         if (strcmp(previousValue, reply->str) != 0) {
             info("Previous String (%s): %s\n", offset, previousValue);
             info("Updating %s to new string %s\n", previousValue, reply->str);
 
             write_to_memory_map_in_offset(conn, atoi(offset), reply->str);
-            update_qp();
+        process_without_fetching_wq(&wc, 1);
+	    //    update_qp();
 
             previousValue = strdup(reply->str);
             info("MAP_UPDATE: key: %s value: %s\n", offset, reply->str);
@@ -388,12 +423,13 @@ void* write_to_redis(void *args) {
     char *previousValue = "(nil)";
     char offset[2] = {'1', '\0'};
     redisReply *reply;
-
+struct ibv_wc wc;
     while (1) {
-	    read_from_memory_map_in_offset(conn, atoi(offset));
-        update_qp();
+	read_from_memory_map_in_offset(conn, atoi(offset));
         char *str = conn->local_memory_region + (8 * (DATA_SIZE / BLOCK_SIZE)) + (atoi(offset) * BLOCK_SIZE);
-
+	
+	
+	process_without_fetching_wq(&wc, 1);
         if (strcmp(previousValue, str) != 0) {
             info("Previous String (%s): %s\n", offset, previousValue);
             info("Updating %s to new string %s\n", previousValue, str);
@@ -438,21 +474,25 @@ static int wait_for_event(struct sockaddr_in *s_addr) {
                 post_send_to_server();
                 poll_for_completion_events(2); // post_recv_server_memory_map, post_send_to_server
                 read_memory_map(connection);
-                update_qp();
-                //poll_for_completion_events(1);
+		struct ibv_wc wc;
+                process_without_fetching_wq(&wc, 1);
+		//update_qp();
+                poll_for_completion_events(1);
                 pthread_create(&thread1, NULL, read_from_redis, (void*) connection);
                 pthread_create(&thread2, NULL, write_to_redis, (void *) connection);
                 break;
-//            case RDMA_CM_EVENT_DISCONNECTED:
-//                HANDLE_NZ(rdma_ack_cm_event(dummy_event));
-//                disconnect_and_cleanup();
-                //break;
+            case RDMA_CM_EVENT_DISCONNECTED:
+                HANDLE_NZ(rdma_ack_cm_event(dummy_event));
+                //disconnect_and_cleanup();
+                break;
             default:
                 error("Event not found %s", (char *) cm_event.event);
                 break;
         }
     }
 }
+
+
 
 int main(int argc, char **argv) {
     struct sockaddr_in server_sockaddr;
