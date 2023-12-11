@@ -389,10 +389,10 @@ void* read_from_redis(void* args) {
             info("Previous String (%s): %s\n", offset, previousValue);
             info("Updating %s to new string %s\n", previousValue, reply->str);
 
-            struct timeval current_time;
-            gettimeofday(&current_time, NULL);
-            printf("seconds : %ld\nmicro seconds : %ld\n",
-                   current_time.tv_sec, current_time.tv_usec);
+            //struct timeval current_time;
+            //gettimeofday(&current_time, NULL);
+            //printf("seconds : %ld\nmicro seconds : %ld\n",
+             //      current_time.tv_sec, current_time.tv_usec);
 
             write_to_memory_map_in_offset(conn, atoi(offset), reply->str);
             process_without_fetching_wq(&wc, 1);
@@ -419,16 +419,25 @@ void* write_to_redis(void *args) {
     char offset[2] = {'1', '\0'};
     redisReply *reply;
     struct ibv_wc wc;
+    clock_t start_t, end_t;
+    double total_t;
     while (1) {
+	    start_t = clock();
 	    read_from_memory_map_in_offset(conn, atoi(offset));
-        char *str = conn->local_memory_region + (8 * (DATA_SIZE / BLOCK_SIZE)) + (atoi(offset) * BLOCK_SIZE);
+            char *str = conn->local_memory_region + (8 * (DATA_SIZE / BLOCK_SIZE)) + (atoi(offset) * BLOCK_SIZE);
 	    process_without_fetching_wq(&wc, 1);
         if (strcmp(previousValue, str) != 0) {
-            info("Previous String (%s): %s\n", offset, previousValue);
+           
+	    info("Previous String (%s): %s\n", offset, previousValue);
             info("Updating %s to new string %s\n", previousValue, str);
 
             reply = redisCommand(context, "SET %s %s", offset, str);
-            if (!reply || context->err) {
+            
+	    end_t = clock();
+            total_t = (double)(end_t - start_t) / CLOCKS_PER_SEC;
+            printf("Total time taken by CPU: %f\n", total_t  );
+	    
+	    if (!reply || context->err) {
                 fprintf(stderr, "Error:  Can't send command to Redis\n");
                 pthread_exit((void *) 0);
             }
