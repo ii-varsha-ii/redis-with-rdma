@@ -331,23 +331,23 @@ void* read_from_redis(void* args) {
 
     char offset[2] = {'0', '\0'};
     redisReply* reply;
-    char* previousValue = NULL;
+    char* previousValue = "(nil)";
 
     while (1) {
         reply = redisCommand(context, "GET %s", offset);
 
         if (reply == NULL || reply->type != REDIS_REPLY_STRING) {
-            fprintf(stderr, "Error getting key value or key not found\n");
+            //fprintf(stderr, "Error getting key value or key not found\n");
             freeReplyObject(reply);
             continue;
         }
 
-        if (previousValue == NULL || strcmp(previousValue, reply->str) != 0) {
+        if (strcmp(previousValue, reply->str) != 0) {
             info("Previous String (%s): %s\n", offset, previousValue);
             info("Updating %s to new string %s\n", previousValue, reply->str);
 
             write_to_memory_map_in_offset(conn, atoi(offset), reply->str);
-            poll_for_completion_events(1);
+//            poll_for_completion_events(1);
 
             previousValue = strdup(reply->str);
             info("MAP_UPDATE: key: %s value: %s\n", offset, reply->str);
@@ -372,12 +372,14 @@ void* write_to_redis(void *args) {
     redisReply *reply;
 
     while (1) {
-        read_from_memory_map_in_offset(conn, atoi(offset));
-        poll_for_completion_events(1);
+        printf("%d\n", atoi(offset));
+	read_from_memory_map_in_offset(conn, atoi(offset));
+        //poll_for_completion_events(1);
 
         char *str = conn->local_memory_region + (8 * (DATA_SIZE / BLOCK_SIZE)) + (atoi(offset) * BLOCK_SIZE);
 
-        if (previousValue == NULL || strcmp(previousValue, str) != 0) {
+	printf("%s\n", str);
+        if (strcmp(previousValue, str) != 0) {
             info("Previous String (%s): %s\n", offset, previousValue);
             info("Updating %s to new string %s\n", previousValue, str);
 
@@ -422,7 +424,7 @@ static int wait_for_event(struct sockaddr_in *s_addr) {
                 post_send_to_server();
                 poll_for_completion_events(2); // post_recv_server_memory_map, post_send_to_server
                 read_memory_map(connection);
-                poll_for_completion_events(1);
+              // poll_for_completion_events(1);
                 pthread_create(&thread1, NULL, read_from_redis, (void*) connection);
                 pthread_create(&thread2, NULL, write_to_redis, (void *) connection);
                 break;
