@@ -49,3 +49,8 @@ From Node 2 to Node 1:
 5. Create a buffer for the client metadata, with client data length and address info, and post send request.
 6. Post a send request with a buffer with the src data to WRITE, and wait for work completion
 7. Post a send request with a buffer with a dst addr to READ, and wait for work completion.
+
+# References:
+1. Beautiful and clean RDMA example provided by https://github.com/animeshtrivedi/rdma-example.
+2. https://www.doc.ic.ac.uk/~jgiceva/teaching/ssc18-rdma.pdf
+3. https://insujang.github.io/2020-02-09/introduction-to-programming-infiniband/
