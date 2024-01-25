@@ -2,6 +2,7 @@
 <h2 align=center> Exploring Secure Inter-Container Communication on Different Hosts </h2>
 
 Cloudlab profile: https://github.com/ii-varsha-ii/CloudLab-RDMARoCE-profile.git
+Project report: [Advanced_OS_project.pdf](https://github.com/ii-varsha-ii/redis-with-rdma/files/14058312/Advanced_OS_project.pdf)
 
 ## To sync two Redis masters using RDMA:
 ### How to run RDMA server and client?
